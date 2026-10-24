@@ -26,9 +26,8 @@ class Portfolio extends Model
 
     public function roleFor(User $user): ?Role
     {
-        $value = $this->members()->where('user_id', $user->id)->value('role');
-
-        return $value ? Role::from($value) : null;
+        // PortfolioMember casts `role` to the Role enum, so this is already a Role (or null).
+        return $this->members()->where('user_id', $user->id)->first()?->role;
     }
 
     public function usableAssets(): Builder

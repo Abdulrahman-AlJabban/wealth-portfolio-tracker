@@ -1,5 +1,9 @@
 <?php
 
+use App\Enums\Role;
+use App\Models\Asset;
+use App\Models\Portfolio;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -44,7 +48,41 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function something()
+/**
+ * A fresh portfolio with a separate owner, plus a user holding $role in it.
+ * For Role::Owner the returned user is the owner.
+ *
+ * @return array{0: User, 1: Portfolio}
+ */
+function portfolioWithRole(Role $role): array
 {
-    // ..
+    $owner = User::factory()->create();
+    $portfolio = Portfolio::create([
+        'name' => 'Test Portfolio',
+        'base_currency' => 'USD',
+        'created_by' => $owner->id,
+    ]);
+    $portfolio->members()->create(['user_id' => $owner->id, 'role' => Role::Owner->value]);
+
+    if ($role === Role::Owner) {
+        return [$owner, $portfolio];
+    }
+
+    $user = User::factory()->create();
+    $portfolio->members()->create(['user_id' => $user->id, 'role' => $role->value]);
+
+    return [$user, $portfolio];
+}
+
+function globalAsset(string $symbol = 'BTC'): Asset
+{
+    return Asset::create([
+        'portfolio_id' => null,
+        'type' => 'crypto',
+        'symbol' => $symbol,
+        'external_id' => strtolower($symbol),
+        'name' => $symbol,
+        'currency' => 'USD',
+        'price_source' => 'market',
+    ]);
 }

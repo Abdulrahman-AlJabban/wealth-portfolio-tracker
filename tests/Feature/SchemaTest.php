@@ -1,5 +1,8 @@
 <?php
 
+// Run with: ./vendor/bin/pest --configuration=phpunit.schema.xml tests/Feature/SchemaTest.php
+// This uses a separate MySQL test database (wealth_test) to avoid wiping demo data
+
 use App\Models\Asset;
 use App\Models\Portfolio;
 use App\Models\PriceSnapshot;
@@ -9,11 +12,6 @@ use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
-
-beforeEach(function () {
-    // Run migrations for the test database
-    $this->artisan('migrate');
-});
 
 test('membership is unique per user and portfolio', function () {
     $user = User::factory()->create();

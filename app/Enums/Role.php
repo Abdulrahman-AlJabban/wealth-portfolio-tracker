@@ -10,7 +10,9 @@ enum Role: string
 
     public function rank(): int
     {
-        return match ($this) { self::Owner => 3, self::Editor => 2, self::Viewer => 1 };
+        return match ($this) {
+            self::Owner => 3, self::Editor => 2, self::Viewer => 1
+        };
     }
 
     public function atLeast(self $min): bool

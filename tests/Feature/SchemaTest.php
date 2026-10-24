@@ -1,8 +1,8 @@
 <?php
 
-// NOTE: These tests use SQLite (:memory:) by default. To use a separate MySQL test database
-// (wealth_test) to avoid wiping demo data, create the database and set DB_DATABASE=wealth_test
-// in phpunit.xml, then run: ./vendor/bin/pest tests/Feature/SchemaTest.php
+// NOTE: The suite runs against a separate MySQL database (wealth_test, set in phpunit.xml),
+// so RefreshDatabase never wipes the demo data in `wealth`. Create it once before running tests:
+// CREATE DATABASE wealth_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 use App\Models\Asset;
 use App\Models\Portfolio;

@@ -10,6 +10,11 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
+beforeEach(function () {
+    // Run migrations for the test database
+    $this->artisan('migrate');
+});
+
 test('membership is unique per user and portfolio', function () {
     $user = User::factory()->create();
     $p = Portfolio::create(['name' => 'P', 'base_currency' => 'USD', 'created_by' => $user->id]);

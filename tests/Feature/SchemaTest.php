@@ -1,7 +1,8 @@
 <?php
 
-// Run with: ./vendor/bin/pest --configuration=phpunit.schema.xml tests/Feature/SchemaTest.php
-// This uses a separate MySQL test database (wealth_test) to avoid wiping demo data
+// NOTE: These tests use SQLite (:memory:) by default. To use a separate MySQL test database
+// (wealth_test) to avoid wiping demo data, create the database and set DB_DATABASE=wealth_test
+// in phpunit.xml, then run: ./vendor/bin/pest tests/Feature/SchemaTest.php
 
 use App\Models\Asset;
 use App\Models\Portfolio;

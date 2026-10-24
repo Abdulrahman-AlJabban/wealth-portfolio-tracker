@@ -135,9 +135,14 @@ This document summarizes the completed database layer implementation for the Wea
 - `nullOnDelete`: Allows soft delete when referenced record is deleted (price_snapshots.created_by)
 
 ### Test Database
-- Schema tests use SQLite (:memory:) by default for speed
-- Documented how to use separate MySQL test database (wealth_test) if needed
-- Running tests does not affect demo data in main `wealth` database
+- The suite runs on a separate MySQL database, `wealth_test`, configured in `phpunit.xml`
+- Running tests does not affect demo data in the main `wealth` database
+- Create it once: `CREATE DATABASE wealth_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`
+- There is no `.env.testing`, so `php artisan ... --env=testing` still targets `wealth`. Use Pest to touch the test DB
+
+### Storage Engine
+- The mysql connection forces `'engine' => 'InnoDB'` in `config/database.php`
+- Reason: some local MySQL installs default to MyISAM, which silently ignores transactions, row locks and foreign keys
 
 ---
 
@@ -182,6 +187,16 @@ php artisan tinker
 8. `Add demo seeder` - Demo data matching spec exactly
 9. `Add schema tests` - Four tests verifying database constraints
 10. `Document test database setup in SchemaTest` - Documentation for test database configuration
+
+---
+
+## Fixes After Handoff (October 25, 2026)
+
+Found while starting `actions_tasks.md`:
+
+1. **`Portfolio::roleFor()` crashed for every member.** `->value('role')` already returns the `Role` enum because of the `PortfolioMember` cast, so the extra `Role::from()` threw a TypeError. Now returns `->first()?->role`. Commit `32cfca6`.
+2. **All tables were MyISAM.** The local server's default engine is MyISAM, so `DB::transaction()`, `lockForUpdate()` and every foreign key policy above were silently not enforced. The mysql connection now forces InnoDB, and both databases were rebuilt. Commit `d79725c`.
+3. **Tests moved from SQLite to MySQL (`wealth_test`)**, as `database_tasks.md` Task 8 originally asked. SQLite stores decimals as floats, so `SUM()` could return values like `1.0E-8` that `bcmath` rejects, and it ignores row locks. Commit `d79725c`.
 
 ---
 

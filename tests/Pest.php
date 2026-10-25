@@ -3,6 +3,7 @@
 use App\Enums\Role;
 use App\Models\Asset;
 use App\Models\Portfolio;
+use App\Models\PortfolioMember;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -72,6 +73,17 @@ function portfolioWithRole(Role $role): array
     $portfolio->members()->create(['user_id' => $user->id, 'role' => $role->value]);
 
     return [$user, $portfolio];
+}
+
+/**
+ * Adds a new user to an existing portfolio with the given role and returns the membership row.
+ */
+function memberWithRole(Portfolio $portfolio, Role $role): PortfolioMember
+{
+    return $portfolio->members()->create([
+        'user_id' => User::factory()->create()->id,
+        'role' => $role->value,
+    ]);
 }
 
 function globalAsset(string $symbol = 'BTC'): Asset

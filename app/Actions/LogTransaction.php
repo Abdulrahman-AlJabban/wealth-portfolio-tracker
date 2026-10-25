@@ -23,8 +23,9 @@ final class LogTransaction
 {
     /**
      * Up to 16 integer digits and 8 decimals, matching DECIMAL(24,8). No sign, no exponent.
+     * Public so every Action that accepts money uses the same definition.
      */
-    private const DECIMAL_PATTERN = '/^\d{1,16}(\.\d{1,8})?$/';
+    public const DECIMAL_PATTERN = '/^\d{1,16}(\.\d{1,8})?$/';
 
     public function __construct(private PositionService $positions) {}
 

@@ -217,6 +217,23 @@ describe('owners', function () {
             ->assertSessionHasErrors(['role' => 'A portfolio needs at least one owner.']);
     });
 
+    test('can add a private asset, value it, buy it and see it in holdings', function () {
+        $fixture = httpFixture();
+        $portfolio = $fixture['portfolio'];
+        $this->actingAs($fixture['owner'])->from(route('portfolios.show', $portfolio));
+
+        $this->post(route('assets.store', $portfolio), ['name' => 'Rental flat', 'type' => 'real_estate'])->assertSessionHasNoErrors();
+        $rentalFlat = Asset::where('name', 'Rental flat')->firstOrFail();
+        $this->post(route('valuations.store', [$portfolio, $rentalFlat]), ['price' => '120000'])->assertSessionHasNoErrors();
+        $this->post(route('transactions.store', $portfolio), ['asset_id' => $rentalFlat->id, 'type' => 'buy', 'quantity' => '1', 'price' => '110000'])
+            ->assertSessionHasNoErrors();
+
+        $this->get(route('portfolios.show', $portfolio))->assertInertia(fn (Assert $page) => $page
+            ->where('summary.holdings', fn ($holdings) => collect($holdings)->contains(fn ($holding) => $holding['name'] === 'Rental flat'
+                && $holding['value'] === '120000.00000000'
+                && $holding['pnl'] === '10000.00000000')));
+    });
+
     test('can delete the portfolio', function () {
         $fixture = httpFixture();
 

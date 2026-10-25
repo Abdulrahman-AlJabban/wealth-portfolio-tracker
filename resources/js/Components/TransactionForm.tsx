@@ -2,6 +2,7 @@ import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
+import { localInputToIso } from '@/lib/format';
 import { AssetOption, TransactionType } from '@/types/portfolio';
 import { useForm } from '@inertiajs/react';
 import { FormEvent } from 'react';
@@ -46,12 +47,7 @@ export default function TransactionForm({
     function submit(event: FormEvent) {
         event.preventDefault();
 
-        // datetime-local has no timezone. Send an ISO timestamp so the server does not read
-        // local time as UTC (which, east of UTC, would look like a date in the future).
-        form.transform((data) => ({
-            ...data,
-            occurred_at: data.occurred_at === '' ? '' : new Date(data.occurred_at).toISOString(),
-        }));
+        form.transform((data) => ({ ...data, occurred_at: localInputToIso(data.occurred_at) }));
 
         form.post(route('transactions.store', portfolioId), {
             preserveScroll: true,

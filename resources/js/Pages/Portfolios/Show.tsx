@@ -1,3 +1,4 @@
+import AssetsPanel from '@/Components/AssetsPanel';
 import HoldingsTable, { ProfitText } from '@/Components/HoldingsTable';
 import RoleBadge from '@/Components/RoleBadge';
 import TransactionForm from '@/Components/TransactionForm';
@@ -103,11 +104,14 @@ export default function Show({ portfolio, role, abilities, summary, transactions
                             className="pt-6"
                         >
                             {tab === 'holdings' && (
-                                <HoldingsTable
-                                    holdings={summary.holdings}
-                                    totalValue={summary.total_value}
-                                    currency={portfolio.base_currency}
-                                />
+                                <div className="space-y-8">
+                                    <HoldingsTable
+                                        holdings={summary.holdings}
+                                        totalValue={summary.total_value}
+                                        currency={portfolio.base_currency}
+                                    />
+                                    <AssetsPanel portfolioId={portfolio.id} assets={assets} canWrite={abilities.write} />
+                                </div>
                             )}
                             {tab === 'transactions' && (
                                 <div className="space-y-6">

@@ -10,6 +10,7 @@ use App\Enums\TransactionSource;
 use App\Enums\TransactionType;
 use App\Models\Asset;
 use App\Models\Portfolio;
+use App\Models\PriceSnapshot;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -108,11 +109,27 @@ describe('show', function () {
                 ->has('assets', 2)
                 ->where('assets', fn ($assets) => collect($assets)->firstWhere('id', $flat->id)['is_private'] === true
                     && collect($assets)->firstWhere('id', $btc->id)['is_private'] === false)
+                // Neither asset has a snapshot in this test.
+                ->where('assets.0.price', null)
+                ->where('assets.0.price_as_of', null)
                 ->has('members', 2)
                 ->has('members.0', fn (Assert $member) => $member
                     ->where('role', 'owner')
                     ->has('id')
                     ->has('user', fn (Assert $user) => $user->hasAll(['id', 'name', 'email']))));
+    });
+
+    test('assets carry their latest price and its date', function () {
+        [$owner, $portfolio] = portfolioWithRole(Role::Owner);
+        $btc = globalAsset();
+        PriceSnapshot::create(['asset_id' => $btc->id, 'price' => '60000', 'currency' => 'USD', 'as_of' => '2026-10-20 12:00:00', 'source' => 'market']);
+        PriceSnapshot::create(['asset_id' => $btc->id, 'price' => '65000', 'currency' => 'USD', 'as_of' => '2026-10-24 12:00:00', 'source' => 'market']);
+
+        $this->actingAs($owner)
+            ->get(route('portfolios.show', $portfolio))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('assets.0.price', '65000.00000000')
+                ->where('assets.0.price_as_of', '2026-10-24T12:00:00+00:00'));
     });
 
     test('owners get both abilities and viewers get neither', function (Role $role, bool $write, bool $manage) {

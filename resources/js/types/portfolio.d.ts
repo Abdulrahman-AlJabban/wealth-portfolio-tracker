@@ -59,6 +59,9 @@ export type AssetOption = {
     name: string;
     type: AssetType;
     is_private: boolean;
+    /** Latest snapshot: the sync job's price for market assets, the last manual value for private ones. */
+    price: string | null;
+    price_as_of: string | null;
 };
 
 export type MemberRow = {

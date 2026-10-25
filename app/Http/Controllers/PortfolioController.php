@@ -68,6 +68,7 @@ class PortfolioController extends Controller
             'summary' => $valuation->summary($portfolio),
             'transactions' => $this->latestTransactions($portfolio),
             'assets' => $portfolio->usableAssets()
+                ->with('latestSnapshot')
                 ->orderBy('name')
                 ->get(['id', 'symbol', 'name', 'type', 'portfolio_id'])
                 ->map(fn (Asset $asset) => [
@@ -76,6 +77,8 @@ class PortfolioController extends Controller
                     'name' => $asset->name,
                     'type' => $asset->type->value,
                     'is_private' => ! $asset->isGlobal(),
+                    'price' => $asset->latestSnapshot?->price,
+                    'price_as_of' => $asset->latestSnapshot?->as_of?->toIso8601String(),
                 ]),
             'members' => $portfolio->members()
                 ->with('user:id,name,email')

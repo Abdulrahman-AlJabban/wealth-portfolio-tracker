@@ -39,6 +39,15 @@ export function formatSigned(value: string, maxFractionDigits = 2): string {
     }).format(asNumeric(value));
 }
 
+/**
+ * Converts a datetime-local input value ("2026-10-25T14:00", no timezone) to an ISO timestamp
+ * in UTC. Without this the server would read local time as UTC, which east of UTC looks like
+ * a date in the future. An empty value stays empty, meaning "now" on the server.
+ */
+export function localInputToIso(value: string): string {
+    return value === '' ? '' : new Date(value).toISOString();
+}
+
 /** An ISO 8601 timestamp from the server as a short local date and time, e.g. "Oct 25, 2026, 2:05 PM". */
 export function formatDateTime(iso: string): string {
     return new Intl.DateTimeFormat(LOCALE, {

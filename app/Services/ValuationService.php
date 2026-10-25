@@ -96,4 +96,67 @@ class ValuationService
             'total_pnl' => bcsub($totalValue, $totalCost, 8),
         ];
     }
+
+    /**
+     * How the portfolio's value is spread, by asset and by asset type. Built from summary(),
+     * so it can never disagree with the dashboard. Used by the assistant for rebalancing advice.
+     *
+     * @return array{
+     *     by_asset: list<array{symbol: ?string, name: string, type: string, value: string, weight_pct: string}>,
+     *     by_type: list<array{type: string, value: string, weight_pct: string}>,
+     *     total_value: string,
+     * }
+     */
+    public function allocation(Portfolio $portfolio): array
+    {
+        $summary = $this->summary($portfolio);
+        $total = $summary['total_value'];
+
+        $byAsset = [];
+        $valueByType = [];
+
+        foreach ($summary['holdings'] as $holding) {
+            $byAsset[] = [
+                'symbol' => $holding['symbol'],
+                'name' => $holding['name'],
+                'type' => $holding['type'],
+                'value' => $holding['value'],
+                'weight_pct' => $this->weight($holding['value'], $total),
+            ];
+
+            $valueByType[$holding['type']] = bcadd($valueByType[$holding['type']] ?? '0', $holding['value'], 8);
+        }
+
+        $byType = [];
+
+        foreach ($valueByType as $type => $value) {
+            $byType[] = [
+                'type' => $type,
+                'value' => $value,
+                'weight_pct' => $this->weight($value, $total),
+            ];
+        }
+
+        $largestFirst = fn (array $a, array $b): int => bccomp($b['value'], $a['value'], 8);
+        usort($byAsset, $largestFirst);
+        usort($byType, $largestFirst);
+
+        return ['by_asset' => $byAsset, 'by_type' => $byType, 'total_value' => $total];
+    }
+
+    /**
+     * value * 100 / total as a string with 2 decimals, rounded half-up. bcdiv only truncates, which
+     * could make four weights sum to 99.96; rounding keeps the sum within 0.01 of 100 in practice.
+     * A zero total (nothing priced yet) gives "0.00" instead of dividing by zero.
+     */
+    private function weight(string $value, string $total): string
+    {
+        if (bccomp($total, '0', 8) <= 0) {
+            return '0.00';
+        }
+
+        $percent = bcdiv(bcmul($value, '100', 8), $total, 8);
+
+        return bcadd($percent, '0.005', 2);
+    }
 }

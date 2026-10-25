@@ -45,3 +45,9 @@ Earlier phases are summarized in `DATABASE_DROPOFF.md`, `ACTIONS_DROPOFF.md` and
 - **Changed or rejected:**
   - The first tool check returned **400**. Cause: the test tool was an anonymous PHP class without `name()`, so the SDK sent a class name like `class@anonymous...` as the function name, which Google rejects. With `name()` returning `get_time`, **tool calling works**. Rule for Task 5: every tool class defines `name()`.
   - Local `.env` uses `GEMINI_MODEL=gemini-3.1-flash-lite`. The committed config still defaults to the SDK's model when the variable is empty.
+
+### Task 3: AgentContext and allocation read model
+
+- **Asked:** Claude Code to add `AgentContext` and `ValuationService::allocation()`.
+- **Reviewed:** that allocation is built only from `summary()` (one source of numbers), that `role()` reads the role fresh so a demotion mid-run takes effect, and the rounding of weights.
+- **Changed or rejected:** the spec's `value * 100 / total` with `bcdiv` alone truncates, so the seeded weights would sum to 99.98, outside the allowed 0.01. Weights are rounded half-up instead (sum 99.99). Proven by temporarily switching back to truncation: 2 allocation tests failed. Rows are sorted largest first so the model reads the biggest positions first.

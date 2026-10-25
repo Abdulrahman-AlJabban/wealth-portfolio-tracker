@@ -7,11 +7,11 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\ValuationController;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
-Route::get('/dashboard', function () {
-    return Inertia::render('Dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+// Breeze's auth controllers redirect to "dashboard" after login and registration; send them to the portfolios.
+Route::get('/dashboard', fn () => redirect()->route('portfolios.index'))
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard');
 
 Route::middleware('auth')->group(function () {
     Route::get('/', fn () => redirect()->route('portfolios.index'));

@@ -2,8 +2,8 @@ import ApplicationLogo from '@/Components/ApplicationLogo';
 import Dropdown from '@/Components/Dropdown';
 import NavLink from '@/Components/NavLink';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink';
-import { Link, usePage } from '@inertiajs/react';
-import { PropsWithChildren, ReactNode, useState } from 'react';
+import { Link, router, usePage } from '@inertiajs/react';
+import { PropsWithChildren, ReactNode, useEffect, useState } from 'react';
 
 export default function Authenticated({
     header,
@@ -28,10 +28,10 @@ export default function Authenticated({
 
                             <div className="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
                                 <NavLink
-                                    href={route('dashboard')}
-                                    active={route().current('dashboard')}
+                                    href={route('portfolios.index')}
+                                    active={route().current('portfolios.*')}
                                 >
-                                    Dashboard
+                                    Portfolios
                                 </NavLink>
                             </div>
                         </div>
@@ -132,10 +132,10 @@ export default function Authenticated({
                 >
                     <div className="space-y-1 pb-3 pt-2">
                         <ResponsiveNavLink
-                            href={route('dashboard')}
-                            active={route().current('dashboard')}
+                            href={route('portfolios.index')}
+                            active={route().current('portfolios.*')}
                         >
-                            Dashboard
+                            Portfolios
                         </ResponsiveNavLink>
                     </div>
 
@@ -173,7 +173,50 @@ export default function Authenticated({
                 </header>
             )}
 
+            <FlashBanner />
+
             <main>{children}</main>
+        </div>
+    );
+}
+
+/**
+ * Shows the flash message from the last redirect ("Transaction logged.", ...). Dismissing it
+ * lasts until the next visit, so the same message twice in a row is still shown the second time.
+ */
+function FlashBanner() {
+    const { flash } = usePage().props;
+    const [dismissed, setDismissed] = useState(false);
+
+    useEffect(() => router.on('success', () => setDismissed(false)), []);
+
+    const message = flash.error ?? flash.success;
+
+    if (dismissed || message === null) {
+        return null;
+    }
+
+    const isError = flash.error !== null;
+
+    return (
+        <div className="mx-auto max-w-7xl px-4 pt-6 sm:px-6 lg:px-8">
+            <div
+                role={isError ? 'alert' : 'status'}
+                className={`flex items-start justify-between gap-4 rounded-md border px-4 py-3 text-sm ${
+                    isError
+                        ? 'border-red-200 bg-red-50 text-red-800'
+                        : 'border-gray-200 bg-white text-gray-800'
+                }`}
+            >
+                <span>{message}</span>
+                <button
+                    type="button"
+                    onClick={() => setDismissed(true)}
+                    className="rounded text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                    Dismiss
+                </button>
+            </div>
         </div>
     );
 }

@@ -63,9 +63,9 @@ All three were run with `curl` as each seeded user against `php artisan serve`, 
 | File | Tests |
 |---|---|
 | `tests/Feature/ValuationServiceTest.php` | 9 |
-| `tests/Feature/DeletePortfolioTest.php`, `CreatePrivateAssetTest.php` | 22 |
+| `tests/Feature/DeletePortfolioTest.php`, `CreatePrivateAssetTest.php` | 21 |
 | `tests/Feature/Http/PortfolioControllerTest.php` | 16 (props shape, constant query count, 403, 404, error page) |
-| `tests/Feature/Http/PortfolioHttpTest.php` | 53 (guests, non-members, viewers, editors, owners, validation, ledger protection) |
+| `tests/Feature/Http/PortfolioHttpTest.php` | 51 (guests, non-members, viewers, editors, owners, validation, ledger protection) |
 | `tests/Architecture/WritePathTest.php` | extended to `Asset`, `Portfolio` and `->delete()` writes, with no exceptions |
 
 ---

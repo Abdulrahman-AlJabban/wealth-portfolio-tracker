@@ -1,5 +1,6 @@
 import AssetsPanel from '@/Components/AssetsPanel';
 import HoldingsTable, { ProfitText } from '@/Components/HoldingsTable';
+import MembersPanel from '@/Components/MembersPanel';
 import RoleBadge from '@/Components/RoleBadge';
 import TransactionForm from '@/Components/TransactionForm';
 import TransactionList from '@/Components/TransactionList';
@@ -23,7 +24,7 @@ function tabFromHash(): TabId {
     return TABS.find((tab) => tab.id === hash)?.id ?? 'holdings';
 }
 
-export default function Show({ portfolio, role, abilities, summary, transactions, assets }: ShowProps) {
+export default function Show({ portfolio, role, abilities, summary, transactions, assets, members }: ShowProps) {
     const [tab, setTab] = useState<TabId>(tabFromHash);
 
     function selectTab(id: TabId) {
@@ -126,9 +127,8 @@ export default function Show({ portfolio, role, abilities, summary, transactions
                                     />
                                 </div>
                             )}
-                            {/* Temporary until http_ui_tasks.md Task 12 */}
                             {tab === 'members' && (
-                                <p className="text-sm text-gray-600">Members will appear here.</p>
+                                <MembersPanel portfolioId={portfolio.id} members={members} canManage={abilities.manage} />
                             )}
                         </div>
                     </div>

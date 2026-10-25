@@ -26,7 +26,7 @@ class MemberController extends Controller
         $addMember->execute(
             $request->user(),
             $portfolio,
-            (int) $request->validated('user_id'),
+            $request->validated('email'),
             Role::from($request->validated('role')),
         );
 

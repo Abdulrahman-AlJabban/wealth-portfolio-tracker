@@ -55,7 +55,7 @@ function writeEndpoint(string $name, array $fixture): array
         'reverse transaction' => ['POST', route('transactions.reverse', [$portfolio, $fixture['transaction']]), []],
         'add asset' => ['POST', route('assets.store', $portfolio), ['name' => 'Bank account', 'type' => 'cash']],
         'set valuation' => ['POST', route('valuations.store', [$portfolio, $fixture['flat']]), ['price' => '85000']],
-        'add member' => ['POST', route('members.store', $portfolio), ['user_id' => User::factory()->create()->id, 'role' => 'viewer']],
+        'add member' => ['POST', route('members.store', $portfolio), ['email' => User::factory()->create()->email, 'role' => 'viewer']],
         'change role' => ['PATCH', route('members.update', [$portfolio, $fixture['viewerMember']]), ['role' => 'editor']],
         'remove member' => ['DELETE', route('members.destroy', [$portfolio, $fixture['viewerMember']]), []],
         'delete portfolio' => ['DELETE', route('portfolios.destroy', $portfolio), []],
@@ -196,13 +196,23 @@ describe('owners', function () {
         $newcomer = User::factory()->create();
         $this->actingAs($fixture['owner'])->from(route('portfolios.show', $portfolio));
 
-        $this->post(route('members.store', $portfolio), ['user_id' => $newcomer->id, 'role' => 'viewer'])->assertSessionHasNoErrors();
+        $this->post(route('members.store', $portfolio), ['email' => $newcomer->email, 'role' => 'viewer'])->assertSessionHasNoErrors();
         $member = $portfolio->members()->where('user_id', $newcomer->id)->firstOrFail();
         $this->patch(route('members.update', [$portfolio, $member]), ['role' => 'editor'])->assertSessionHasNoErrors();
         expect($member->fresh()->role)->toBe(Role::Editor);
         $this->delete(route('members.destroy', [$portfolio, $member]))->assertSessionHasNoErrors();
 
         $this->assertModelMissing($member);
+    });
+
+    test('see an unknown email as a field error', function () {
+        $fixture = httpFixture();
+        $portfolio = $fixture['portfolio'];
+
+        $this->actingAs($fixture['owner'])
+            ->from(route('portfolios.show', $portfolio))
+            ->post(route('members.store', $portfolio), ['email' => 'nobody@example.com', 'role' => 'viewer'])
+            ->assertSessionHasErrors(['email' => 'No user with that email.']);
     });
 
     test('see the last-owner rule as a field error', function () {

@@ -9,8 +9,7 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 /**
- * Shape only. AddMember checks that the user exists and is not already a member.
- * Task 12 of http_ui_tasks.md switches this from user_id to email.
+ * Shape only. AddMember looks the user up by email and checks they are not already a member.
  */
 class StoreMemberRequest extends FormRequest
 {
@@ -25,7 +24,7 @@ class StoreMemberRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'user_id' => ['required', 'integer'],
+            'email' => ['required', 'string', 'email', 'max:255'],
             'role' => ['required', Rule::enum(Role::class)],
         ];
     }

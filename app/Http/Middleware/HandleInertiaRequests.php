@@ -31,8 +31,13 @@ class HandleInertiaRequests extends Middleware
     {
         return [
             ...parent::share($request),
+            // Only the fields the UI needs, so nothing else on the user model reaches the browser.
             'auth' => [
-                'user' => $request->user(),
+                'user' => $request->user()?->only(['id', 'name', 'email']),
+            ],
+            'flash' => [
+                'success' => fn () => $request->session()->get('success'),
+                'error' => fn () => $request->session()->get('error'),
             ],
         ];
     }

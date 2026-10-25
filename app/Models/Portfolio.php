@@ -24,6 +24,14 @@ class Portfolio extends Model
         return $this->hasMany(Transaction::class);
     }
 
+    /**
+     * Private assets owned by this portfolio. Global assets are not included; use usableAssets() for those.
+     */
+    public function assets(): HasMany
+    {
+        return $this->hasMany(Asset::class);
+    }
+
     public function roleFor(User $user): ?Role
     {
         // PortfolioMember casts `role` to the Role enum, so this is already a Role (or null).

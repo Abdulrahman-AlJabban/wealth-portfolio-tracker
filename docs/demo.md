@@ -1,18 +1,19 @@
 # Assistant Demo Scripts
 
-Five scripts for the video. Each takes one to three model calls.
+Six scripts for the video. Scripts 1 to 4 each take one to three model calls; script 6 makes one CoinGecko call.
 
 ## Before you start
 
 1. `php artisan migrate:fresh --seed` (demo users alice, bob, carol; password `password`).
-2. `.env` has `GEMINI_API_KEY=...` and `GEMINI_MODEL=gemini-3.1-flash-lite` (the default `gemini-3.8-flash` was often overloaded during testing).
-3. Three terminals:
+2. `.env` has `GEMINI_API_KEY=...` and `GEMINI_MODEL=gemini-3.1-flash-lite` (the default `gemini-3.8-flash` was often overloaded during testing). For live prices also `MARKET_DRIVER=coingecko` and `COINGECKO_API_KEY=...` (then `php artisan config:clear`).
+3. Four terminals:
    - `PHP_CLI_SERVER_WORKERS=4 php artisan serve` (the chat stream needs more than one worker)
    - `npm run dev`
+   - `php artisan schedule:work` (runs `market:sync` every 5 minutes)
    - a spare one for Tinker
 4. Open http://127.0.0.1:8000 and log in. The assistant panel is on the right of the **Family wealth** page.
 
-Seeded numbers to compare against: total value **132,600.00**, cost **124,100.00**, profit **+8,500.00**; allocation flat 64.10%, BTC 24.51%, ETH 9.65%, AAPL 1.73%.
+Seeded numbers to compare against: total value **132,600.00**, cost **124,100.00**, profit **+8,500.00**; allocation flat 64.10%, BTC 24.51%, ETH 9.65%, AAPL 1.73%. These hold only until the first real price sync; after that, compare the assistant's numbers with the header instead.
 
 ---
 
@@ -87,6 +88,14 @@ Seeded numbers to compare against: total value **132,600.00**, cost **124,100.00
 3. Put the key back and `php artisan config:clear`.
 
 **What to say:** the page asks the server whether the assistant is configured, so it never makes a request that would fail; the endpoint itself answers 503 `not_configured`.
+
+## 6. Live market prices
+
+1. As Alice, open **Family wealth** on the Holdings tab. Note BTC's price and its "as of" time.
+2. In the spare terminal: `php artisan market:sync` → `Updated 3 market prices.`
+3. Within 30 seconds, without reloading, the BTC, ETH and AAPL prices, their "as of" times, the totals and the allocation bars change.
+
+**What to say:** the sync is the only code that writes market prices (R1). It runs every 5 minutes because the free CoinGecko key allows 10,000 calls a month and one batched call prices every asset. The page polls only its price data every 30 seconds, through the same login and permission checks as any page load, so a new price shows within 30 seconds without a WebSocket server. AAPL is priced through Apple xStock, a token backed by Apple shares; on a weekend it still moves while the stock market is closed.
 
 ---
 

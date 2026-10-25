@@ -16,8 +16,8 @@ Read it together with the plan you already have. Plan references use your own nu
 | `actions_tasks.md` (Tasks 0 to 12) | Done, except **Task 11 (DB triggers), skipped** by the user. |
 | `http_ui_tasks.md` (Tasks 0 to 14) | Done. |
 | `ai_agent_tasks.md` (Tasks 0 to 12) | Done, **including Task 11 (human approval)**. Live browser rehearsal still owed. |
-| BUILD_GUIDE tiers | T0 partly (plan docs yes; `docs/decisions.md` and `docs/rules.md` never written; content lives in BUILD_GUIDE and the reports). T1, T2, T4 done. **T3 (price sync) and T5 (realtime) not built.** |
-| Tests | **382 passing, 1,059 assertions**, on MySQL `wealth_test`. 127 of them are agent tests. |
+| BUILD_GUIDE tiers | T0 partly (plan docs yes; `docs/decisions.md` and `docs/rules.md` never written; content lives in BUILD_GUIDE and the reports). T1, T2, T4 done. **T3 (price sync) done after the task lists** (section 6b). **T5 done as polling**, not Reverb (section 6b). |
+| Tests | **399 passing, 1,090 assertions**, on MySQL `wealth_test`. 127 agent tests, 17 market-price tests. |
 | Repository | About 65 local commits on `master`. **No remote yet.** README is still Laravel's stock page plus one "Configure the agent" section. |
 
 Reports written along the way (in the repo): `DATABASE_DROPOFF.md`, `ACTIONS_DROPOFF.md`, `HTTP_UI_DROPOFF.md`, `docs/ai-workflow.md` (one entry per agent task), `docs/demo.md` (five demo scripts), `docs/guide.html` (static visual guide).
@@ -132,6 +132,28 @@ Built as specified: `ValuationService::summary()`, `DeletePortfolio`, `CreatePri
 
 ---
 
+## 6b. Market prices and live updates (BUILD_GUIDE §10, T3 and T5), added after the task lists
+
+The user asked for live BTC prices after the agent work. No task list existed for this; it was built from BUILD_GUIDE §10 with these decisions:
+
+**Provider.** freecryptoapi.com was considered first (free plan 100,000 calls a month). The user switched to **CoinGecko** because they already had a key. CoinGecko is crypto-only, so **AAPL is priced through "Apple xStock" (`apple-xstock`)**, a token backed 1:1 by Apple shares. Say on camera: it tracks the stock but trades 24/7, so it can differ from the exchange price. (Alternatives presented: Finnhub for the real quote, free at about 60 calls a minute; keep AAPL seeded; delete AAPL. The PDF lists stocks as an asset class, which is why deleting it was argued against.)
+
+**Cadence.** A free CoinGecko **Demo key allows 10,000 calls a month**. One batched call prices BTC, ETH and AAPLX together; every minute would be about 43,200 calls a month, so the sync runs **every 5 minutes** (about 8,640 calls), the cadence BUILD_GUIDE §10 originally planned.
+
+**Built:**
+- `app/Market/PriceProvider.php` (interface), `CoinGeckoProvider.php` (one `simple/price` call with `x-cg-demo-api-key`, `precision=full`; JSON floats formatted straight to 8-decimal strings; any HTTP error throws so nothing partial is stored), `FakeProvider.php` (local random walk of up to ±1.5% with `bcmath`, no key needed).
+- `app/Market/SyncMarketPrices.php`: **the only writer of market prices (completes R1)**. Global market assets only; snapshot time rounded to the minute; `upsert` on the unique `(asset_id, as_of, source)` key, so running twice in a minute updates the same row (idempotent); malformed, zero or negative prices are skipped.
+- `php artisan market:sync` (on demand for the demo), scheduled `everyFiveMinutes()->withoutOverlapping()`. Runs inline from the scheduler, so it needs `php artisan schedule:work` but **no queue worker**.
+- Config `config/market.php`; `MARKET_DRIVER=coingecko|fake` (default `fake`), `COINGECKO_API_KEY`. Binding in `AppServiceProvider`.
+- **Live updates by polling:** `usePoll(30_000, { only: ['summary', 'assets'] })` on the portfolio page; header says "market prices refresh every 5 minutes".
+- 17 tests (`tests/Feature/Market`): exact request (one batched call, header, params) via `Http::fake`; skip assets without an id or not in USD; a missing coin is skipped, not priced at zero; 401, 429 and 500 throw; idempotent upsert; a later minute adds a row that becomes the current price; private assets never touched; bad prices skipped; the summary picks up the new price; command output; schedule expression.
+
+**Why polling, not WebSockets (the user wants to defend this):** freshness is capped by the upstream API (5 minutes on the free tier), so a push cannot show anything sooner than a 30-second poll. Polling adds no package and no process, and every poll is a normal page request protected by the existing login and `view` policy, so there is no new security boundary. WebSockets (Laravel Reverb) would add `laravel/reverb`, `laravel-echo`, `pusher-js`, a Reverb server, a queue worker for broadcasts, and a private channel per portfolio whose authorization must match the policy, for no visible gain here. Polling's costs: requests even when nothing changed (3 queries per poll), up to one interval of delay, and no foundation for presence or collaborative features. **Reverb becomes the right choice** when users must see each other's actions instantly or the data source updates every second.
+
+**Status:** tested with fakes and run locally with the fake driver (two syncs in the same minute updated the same rows). **One real CoinGecko call has not been made yet** (the key is not in `.env` at the time of writing), so the `apple-xstock` id and the real response shape are still to be confirmed.
+
+---
+
 ## 7. Where the finished system differs from BUILD_GUIDE
 
 | BUILD_GUIDE | Finished system |
@@ -144,7 +166,8 @@ Built as specified: `ValuationService::summary()`, `DeletePortfolio`, `CreatePri
 | §13 seeder | Unchanged numbers: value 132,600.00, cost 124,100.00, profit +8,500.00 |
 | §6 Portfolio deletion cascades | Soft delete (from `database_plan.md` §2.4) |
 | §9.1 routes | Same, plus `agent.approvals`; no profile deletion |
-| §10 price sync (T3) | Not built |
+| §10 price sync (T3): a queued `SyncMarketPrices` job, `FakeProvider`, `CoinGeckoProvider` | Built as a plain class run by the `market:sync` command every 5 minutes (no queue worker needed); AAPL via Apple xStock |
+| T5 realtime (Reverb or polling) | Polling every 30 s with Inertia `usePoll` |
 | §15 `docs/decisions.md`, `docs/rules.md` | Not written; covered by BUILD_GUIDE and the reports |
 
 New components the plan did not name: `AssistantStatus`, `AssistantConversations`, `AssistantStream`, `AssistantThread` (model and table), `AgentApprovalController`, `CreatePrivateAsset`, `DeletePortfolio`, `RoleBadge`, `AssetsPanel`, the `Error` page.
@@ -183,9 +206,10 @@ Mutation checks that proved tests catch real mistakes: eager loading removed (qu
 - Replace the stock README with setup instructions (the PDF requires them). Also: `.env.example` says database `wealth_portfolio` with user root, `docker-compose.yml` says `wealth`/`wealth`/`secret`, and the working machine uses `wealth`; `wealth_test` must be created by hand.
 - Rotate the Gemini key (it was pasted into a chat).
 - One live browser run of `docs/demo.md` scripts 1 to 3: streaming, Approve and the Viewer refusal have only run under tests.
+- One real `php artisan market:sync` with `MARKET_DRIVER=coingecko` and the CoinGecko key, to confirm the `apple-xstock` id and the response shape.
 - Record the 10 to 15 minute video; reply to the email with both links.
 
-**Known gaps to state in the video:** no price sync (prices never change) and no realtime; the R5 query-builder gap; single currency; average cost only, sell fees not in profit, no cash debit; no concurrency test; transaction list capped at 50; assistant has no token budget (only 20 messages a minute), no offline prompt evaluations, one provider tested, a page refresh starts a new chat, plain-text replies, up to 100 messages replayed per conversation. The visual design is a restrained Breeze look (gray and indigo); the 375 px layout and focus rings were checked by reading code only.
+**Known gaps to state in the video:** prices refresh every 5 minutes (free API quota), AAPL is a tokenized stand-in, live updates are polling rather than push, and there are no collaborative realtime features (presence, notes); the R5 query-builder gap; single currency; average cost only, sell fees not in profit, no cash debit; no concurrency test; transaction list capped at 50; assistant has no token budget (only 20 messages a minute), no offline prompt evaluations, one provider tested, a page refresh starts a new chat, plain-text replies, up to 100 messages replayed per conversation. The visual design is a restrained Breeze look (gray and indigo); the 375 px layout and focus rings were checked by reading code only.
 
 **Present but not asked for by the PDF** (mention briefly or not at all): human approval (worth leading with), Laravel Boost tooling in the repo, the many written reports (the PDF says no written report is required), and hardening such as idempotency keys, soft deletes, unique private names, the architecture test and the accessibility pass.
 
@@ -195,12 +219,13 @@ Mutation checks that proved tests catch real mistakes: eager loading removed (qu
 
 | Topic | What to say | What to show |
 |---|---|---|
-| Scope and prioritization | Built modeling, the agent and UX in depth; deferred async and realtime and why; tiered plan | BUILD_GUIDE §0 tier table |
+| Scope and prioritization | Built modeling, the agent and UX in depth; then the price sync and polling; deferred collaborative realtime and why; tiered plan | BUILD_GUIDE §0 tier table |
+| Async and external data | Scheduled `market:sync` every 5 minutes (free quota math), the only writer of market prices (R1), idempotent upsert, provider interface; polling vs WebSockets (section 6b) | `app/Market/SyncMarketPrices.php`, `php artisan market:sync`, the page updating |
 | Permissions and security | Actions authorize themselves; R1 to R5 each enforced once and tested by name; non-members 403 everywhere; scoped bindings | `app/Actions/LogTransaction.php`, `tests/Feature/RulesTest.php`, Carol's 403 |
 | Agent architecture | Laravel AI SDK (official, tool calling, streaming, conversations, approvals, fakes) vs Vercel AI SDK / Prism / raw loop; four tools; adapters → `AssistantTools::execute()` (`guarded()`, audit row, never throws); own SSE format; server-side history; human approval | `app/Agent/AssistantTools.php`, `PortfolioAssistant.php`, demo 1 and 2 |
 | Agent permissions | Tool list filtered by role but not the boundary; the Action refuses a Viewer even when the tool is called directly; approval re-checks the role; `agent_runs` audit; prompt injection stays data | Demo 3 (panel + Tinker), demo 4 |
 | Stack trade-offs | Laravel + Inertia, no Express and no API tier; MySQL DECIMAL vs Postgres RLS; Actions instead of policy-in-schema; decimal strings; the type-safety answer (Form Requests + DTOs + enums + hand-written TS types + `assertInertia` tests; code generation considered, declined) | BUILD_GUIDE §15.2 |
 | Agentic execution | Plan → task lists → one task, report, review, "next"; verification and mutation checks; reading SDK source; the table in section 8 | `docs/ai_agent_tasks.md`, `docs/ai-workflow.md` |
-| Tests and next steps | 382 tests; network blocked in every test; next: price sync, realtime, R5 triggers, README and type generation | `./vendor/bin/pest` |
+| Tests and next steps | 399 tests; network blocked in every test; next: Reverb for collaborative realtime, a real stock-data provider, R5 triggers, README and type generation | `./vendor/bin/pest` |
 
-Numbers worth saying: 382 tests; 127 agent tests; 15 required agent test names; 5 rules; 4 tools; seeded value 132,600.00 with profit +8,500.00; smallest unit 0.00000001; approval expiry 10 minutes; throttle 20 messages a minute.
+Numbers worth saying: 399 tests; 127 agent tests; 17 market-price tests; sync every 5 minutes = about 8,640 of the free 10,000 CoinGecko calls a month; page polls every 30 seconds; 15 required agent test names; 5 rules; 4 tools; seeded value 132,600.00 with profit +8,500.00; smallest unit 0.00000001; approval expiry 10 minutes; throttle 20 messages a minute.

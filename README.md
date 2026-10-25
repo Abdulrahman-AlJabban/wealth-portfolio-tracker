@@ -31,6 +31,16 @@ Without a key the assistant shows "not configured" and the rest of the app works
 
 See `docs/demo.md` for demo scripts.
 
+## Market prices
+
+Global assets (BTC, ETH, and AAPL through Apple xStock) get live prices from CoinGecko.
+
+1. Get a free Demo key at https://www.coingecko.com/en/api.
+2. In `.env`: `MARKET_DRIVER=coingecko` and `COINGECKO_API_KEY=your-key` (without them, `MARKET_DRIVER=fake` moves prices randomly for local development).
+3. Run `php artisan schedule:work` to sync every 5 minutes, or `php artisan market:sync` once.
+
+The portfolio page reloads its price data every 30 seconds, so a new price appears without a refresh.
+
 ## About Laravel
 
 Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:

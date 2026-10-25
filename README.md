@@ -7,6 +7,30 @@
 <a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
 </p>
 
+## Configure the agent
+
+The portfolio page has an AI assistant that answers questions about the portfolio and can propose transactions. It uses the [Laravel AI SDK](https://laravel.com/docs/ai) (`laravel/ai` 1.3).
+
+1. Get a Google AI Studio key at https://aistudio.google.com/apikey.
+2. In `.env`:
+
+   ```dotenv
+   AGENT_ENABLED=true
+   AI_PROVIDER=gemini
+   GEMINI_API_KEY=your-key
+   GEMINI_MODEL=gemini-3.1-flash-lite   # optional; empty uses the SDK default (gemini-3.8-flash)
+   ```
+
+3. `php artisan config:clear`, then run the app with more than one PHP worker, because the chat streams: `PHP_CLI_SERVER_WORKERS=4 php artisan serve`.
+
+**The model must support tool calling.** Every answer comes from tools (summary, allocation, transactions, log transaction); a model without tool calling cannot answer.
+
+Without a key the assistant shows "not configured" and the rest of the app works. To use another provider, set `AI_PROVIDER` to one of the providers in `config/ai.php` and its key variable (for example `ANTHROPIC_API_KEY`).
+
+**What was actually tested:** Google AI Studio, model `gemini-3.1-flash-lite` (plain prompt and tool calling). `gemini-3.8-flash` was often overloaded (HTTP 503) during testing. The automated tests never call a real model; they use the SDK's fakes and block all network access.
+
+See `docs/demo.md` for demo scripts.
+
 ## About Laravel
 
 Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:

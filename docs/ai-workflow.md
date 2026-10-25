@@ -125,3 +125,32 @@ Earlier phases are summarized in `DATABASE_DROPOFF.md`, `ACTIONS_DROPOFF.md` and
   - "Still an Editor at approval time" is checked twice: the endpoint authorizes `write`, and `LogTransaction` checks again when the approved tool runs.
   - The SSE code moved into one `AssistantStream` class so chat and approvals stream the same format; the chat endpoint's 15 tests passed unchanged after the refactor.
   - The model's instructions now say a logged transaction needs approval, so it does not claim "done" while the card is still waiting.
+
+### Task 12: Final review and demo scripts
+
+- **Asked:** Claude Code to run every check, write `docs/demo.md` and the README's "Configure the agent" section, and list known gaps.
+- **Reviewed:** Pest 382 passing, `tsc`, `npm run build`, Pint. Demo script 3's Tinker lines and script 4's rename were run against the dev database and their written outputs match exactly.
+- **Changed or rejected:**
+  - Script 3 as written in the task list ("show the `agent_runs` row with outcome `denied`") cannot happen from the panel: a Viewer is never offered `log_transaction`, so the model cannot call it and no row is written. The script now shows both layers: the model declining in the panel, then a Tinker call that proves the Action itself refuses Carol and audits it.
+  - Live rehearsal of scripts 1, 2, 4 and 5 needs real model calls; done only with the user's go-ahead (they asked to save tokens).
+
+## What the AI tools got wrong in the agent work, and how it was caught
+
+- **Sent an invalid tool name to Gemini** (anonymous class, no `name()`): caught by the live check returning HTTP 400.
+- **Assumed the SDK fake runs approved tools**: it deliberately does not. Caught by a failing test, diagnosed by printing the stored turn.
+- **Would have spent tokens on hidden title generation** for every new conversation: caught by reading the SDK source before building conversations.
+- **Would have trusted `continue($id)`**: the SDK does not check ownership. Caught by reading the source; `assistant_threads` closes it.
+- **Laravel's `validate()` returns 302, not 422, for an event-stream request**: caught while writing the endpoint; validated by hand.
+- **Empty `GEMINI_MODEL=` would send an empty model name** (`env()` returns `''`): caught in config review.
+
+## Known gaps (agent)
+
+- No token or cost budget: only a rate limit of 20 messages a minute per user.
+- No offline evaluations of prompt quality; behaviour with the real model was checked by hand only.
+- The SDK is young (`laravel/ai` 1.3); its API may still change.
+- Only one provider and model tested: Google AI Studio, `gemini-3.1-flash-lite`.
+- Market prices are seeded snapshots; the price sync job (and any stock price provider) is not built.
+- A page refresh starts a new chat in the panel; the server keeps old conversations but there is no list to reopen them.
+- Replies are plain text: the model's Markdown shows as raw characters (no Markdown library allowed).
+- The approval card shows the model's arguments as typed (for example `btc`); the server matches case-insensitively.
+- The SDK replays up to 100 stored messages per conversation, so long chats cost more tokens.

@@ -105,3 +105,12 @@ Earlier phases are summarized in `DATABASE_DROPOFF.md`, `ACTIONS_DROPOFF.md` and
   - Mounted in the slot reserved on the real show page (HTTP/UI Task 9), not on a separate minimal page.
   - Added a 404 message ("That conversation could not be found...") that also clears the stored id, so a stale conversation does not keep failing.
   - The manual "done when" checks (Alice summary, Alice logs a buy, Carol refused, no-key state) need the live model and are deferred to the final live check, at the user's request to save tokens.
+
+### Task 10: Required agent test checklist
+
+- **Asked:** Claude Code to make sure every required agent test exists under its exact name.
+- **Reviewed:** `./vendor/bin/pest --filter=Agent` (117 passing) and that all 15 required names are listed; the architecture test still passes.
+- **Changed or rejected:**
+  - `no_real_model_is_ever_called` needed a guard for the **whole suite**, not one test. `tests/TestCase.php` now calls `Http::preventStrayRequests()` for every feature test (the SDK reaches providers through Laravel's HTTP client). All 357 existing tests still passed with it on, so nothing was quietly using the network. The named test proves an unfaked assistant call is stopped with `StrayRequestException`.
+  - That test first took about 11 seconds: the SDK retries failed requests with a back-off. `Sleep::fake()` skips the waits (not the retries); the checklist file dropped from 20s to 6.6s.
+  - The usual "remove the guard and watch the test fail" check was deliberately not run, because it would send a real request to Google.

@@ -8,7 +8,7 @@ import TransactionList from '@/Components/TransactionList';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { formatAmount } from '@/lib/format';
 import { ShowProps } from '@/types/portfolio';
-import { Head } from '@inertiajs/react';
+import { Head, usePoll } from '@inertiajs/react';
 import { KeyboardEvent, useState } from 'react';
 
 const TABS = [
@@ -27,6 +27,11 @@ function tabFromHash(): TabId {
 
 export default function Show({ portfolio, role, abilities, assistant, summary, transactions, assets, members }: ShowProps) {
     const [tab, setTab] = useState<TabId>(tabFromHash);
+
+    // Live prices by polling: every 30 s, reload only the props that depend on prices. Prices change
+    // when the 5-minute market sync runs, so a new price shows within 30 s of it existing. Each poll is
+    // a normal page request, so the usual login and "view" checks protect it.
+    usePoll(30_000, { only: ['summary', 'assets'] });
 
     function selectTab(id: TabId) {
         setTab(id);
@@ -66,7 +71,7 @@ export default function Show({ portfolio, role, abilities, assistant, summary, t
                             <RoleBadge role={role} />
                         </div>
                         <p className="mt-1 text-sm text-gray-500">
-                            Amounts in {portfolio.base_currency}
+                            Amounts in {portfolio.base_currency} · market prices refresh every 5 minutes
                         </p>
                     </div>
 

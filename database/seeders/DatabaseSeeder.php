@@ -30,7 +30,8 @@ class DatabaseSeeder extends Seeder
         );
         $aapl = Asset::firstOrCreate(
             ['portfolio_id' => null, 'symbol' => 'AAPL'],
-            ['type' => 'stock', 'name' => 'Apple Inc.', 'price_source' => 'market']
+            // Priced through Apple xStock on CoinGecko (a token backed 1:1 by Apple shares).
+            ['type' => 'stock', 'external_id' => 'apple-xstock', 'name' => 'Apple Inc.', 'price_source' => 'market']
         );
 
         foreach ([[$btc, '65000'], [$eth, '3200'], [$aapl, '230']] as [$asset, $price]) {

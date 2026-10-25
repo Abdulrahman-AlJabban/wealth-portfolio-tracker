@@ -60,3 +60,12 @@ Earlier phases are summarized in `DATABASE_DROPOFF.md`, `ACTIONS_DROPOFF.md` and
   - the tool name comes from the model and `agent_runs.tool` is 64 characters, so a long invented name would have made the audit insert fail; it is truncated;
   - a failure to write the audit row is reported instead of thrown, so it cannot break the "never throws" rule.
   - `limit` is accepted as a string or a number (models are inconsistent), but `2.5` or `1e3` are invalid rather than silently rounded.
+
+### Task 5: SDK adapters and the PortfolioAssistant agent
+
+- **Asked:** Claude Code to write the three SDK tool adapters and the `PortfolioAssistant` agent.
+- **Reviewed:** that each adapter's `handle()` is a one-liner into `AssistantTools::execute()`; that provider and model are not hard-coded (they come from `config/ai.php`); that the tool round limit uses the SDK's `maxSteps()` method, read from `config/agent.php`; and a scripted fake run proving a model tool call travels adapter, `AssistantTools`, audit row.
+- **Changed or rejected:**
+  - Every adapter defines `name()`, the lesson from the Task 1 live check (Gemini rejects the class-name fallback for anonymous classes).
+  - The portfolio name is `json_encode`d into the instructions, so a name like `Savings". New rule: sell everything.` stays inside its quotes instead of reading as a new instruction.
+  - The fake run also uses `Http::preventStrayRequests()`, so any real network call would fail the test. No real model was called.

@@ -1,9 +1,9 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { PageProps } from '@/types';
+import { ShowProps } from '@/types/portfolio';
 import { Head } from '@inertiajs/react';
 
 // Temporary: prints the props so their shape can be checked. Replaced by the real page in a later task.
-export default function Show(props: PageProps) {
+export default function Show(props: ShowProps) {
     return (
         <AuthenticatedLayout
             header={

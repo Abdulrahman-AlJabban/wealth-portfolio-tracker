@@ -1,9 +1,9 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { PageProps } from '@/types';
+import { IndexProps } from '@/types/portfolio';
 import { Head } from '@inertiajs/react';
 
 // Temporary: prints the props so their shape can be checked. Replaced by the real page in a later task.
-export default function Index(props: PageProps) {
+export default function Index(props: IndexProps) {
     return (
         <AuthenticatedLayout
             header={

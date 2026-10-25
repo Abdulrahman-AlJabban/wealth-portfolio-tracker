@@ -43,12 +43,22 @@ arch('actions are final')
     ->expect('App\Actions')
     ->toBeFinal();
 
-test('controllers and agent code never write ledger rows or price snapshots directly', function () {
+test('controllers and agent code never write domain rows directly', function () {
     $offenders = writePathOffenders(
-        '/Transaction::(create|insert|upsert|firstOrCreate|updateOrCreate)|PriceSnapshot::(create|insert|upsert)|->forceDelete\(|DB::table\(\s*[\'"]transactions[\'"]\s*\)->(insert|update|delete)/',
+        '/Transaction::(create|insert|upsert|firstOrCreate|updateOrCreate)|PriceSnapshot::(create|insert|upsert)|Asset::(create|insert|upsert)|Portfolio::(create|insert)|->forceDelete\(|DB::table\(\s*[\'"]transactions[\'"]\s*\)->(insert|update|delete)/',
     );
 
     expect($offenders)->toBe([], 'Write through an Action instead. Offending files: '.implode(', ', $offenders));
+});
+
+test('controllers and agent code never delete records directly', function () {
+    // Breeze's account deletion ($user->delete()) is auth scaffolding, not a domain write,
+    // so it is the one allowed exception. Any other ->delete() must go through an Action.
+    $allowed = ['app/Http/Controllers/ProfileController.php'];
+
+    $offenders = array_values(array_diff(writePathOffenders('/->delete\(\)/'), $allowed));
+
+    expect($offenders)->toBe([], 'Use DeletePortfolio, RemoveMember or another Action instead. Offending files: '.implode(', ', $offenders));
 });
 
 test('controllers and agent code never create memberships directly', function () {

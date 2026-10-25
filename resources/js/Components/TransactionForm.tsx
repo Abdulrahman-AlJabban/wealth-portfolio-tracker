@@ -64,7 +64,7 @@ export default function TransactionForm({
             className="rounded-lg border border-gray-200 bg-white p-5"
             aria-labelledby="log-transaction"
         >
-            <h3 id="log-transaction" className="text-base font-semibold text-gray-900">
+            <h3 id="log-transaction" className="text-base font-medium text-gray-900">
                 Log a transaction
             </h3>
 

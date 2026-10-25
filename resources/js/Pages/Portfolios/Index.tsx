@@ -22,7 +22,7 @@ export default function Index({ portfolios }: IndexProps) {
     return (
         <AuthenticatedLayout
             header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800">
+                <h2 className="text-xl font-medium leading-tight text-gray-800">
                     Portfolios
                 </h2>
             }
@@ -50,7 +50,7 @@ export default function Index({ portfolios }: IndexProps) {
                                             className="block rounded-lg border border-gray-200 bg-white p-5 shadow-sm transition hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                                         >
                                             <div className="flex items-start justify-between gap-3">
-                                                <span className="font-semibold text-gray-900">
+                                                <span className="font-medium text-gray-900">
                                                     {portfolio.name}
                                                 </span>
                                                 <RoleBadge role={portfolio.role} />
@@ -71,7 +71,7 @@ export default function Index({ portfolios }: IndexProps) {
                     >
                         <h3
                             id="create-portfolio"
-                            className="text-base font-semibold text-gray-900"
+                            className="text-base font-medium text-gray-900"
                         >
                             Create a portfolio
                         </h3>

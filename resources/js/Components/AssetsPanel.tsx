@@ -152,7 +152,7 @@ export default function AssetsPanel({
 
     return (
         <section aria-labelledby="assets-heading" className="space-y-4">
-            <h3 id="assets-heading" className="text-base font-semibold text-gray-900">
+            <h3 id="assets-heading" className="text-base font-medium text-gray-900">
                 Assets
             </h3>
 

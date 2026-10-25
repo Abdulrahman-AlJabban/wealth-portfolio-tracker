@@ -153,6 +153,29 @@ describe('show', function () {
             ->assertForbidden();
     });
 
+    test('403 and 404 render a readable error page and keep their status', function () {
+        [$owner, $portfolio] = portfolioWithRole(Role::Owner);
+
+        $this->actingAs(User::factory()->create())
+            ->get(route('portfolios.show', $portfolio))
+            ->assertForbidden()
+            ->assertInertia(fn (Assert $page) => $page->component('Error')->where('status', 403));
+
+        $this->actingAs($owner)
+            ->get('/portfolios/999999')
+            ->assertNotFound()
+            ->assertInertia(fn (Assert $page) => $page->component('Error')->where('status', 404));
+    });
+
+    test('JSON requests still get a JSON 403', function () {
+        [, $portfolio] = portfolioWithRole(Role::Owner);
+
+        $this->actingAs(User::factory()->create())
+            ->getJson(route('portfolios.show', $portfolio))
+            ->assertForbidden()
+            ->assertJsonStructure(['message']);
+    });
+
     test('soft-deleted portfolios return 404', function () {
         [$owner, $portfolio] = portfolioWithRole(Role::Owner);
         $portfolio->delete();

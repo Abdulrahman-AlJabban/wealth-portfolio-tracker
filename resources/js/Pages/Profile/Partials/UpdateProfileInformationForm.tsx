@@ -47,6 +47,7 @@ export default function UpdateProfileInformation({
 
                     <TextInput
                         id="name"
+                        aria-describedby={errors.name ? 'name-error' : undefined}
                         className="mt-1 block w-full"
                         value={data.name}
                         onChange={(e) => setData('name', e.target.value)}
@@ -55,7 +56,7 @@ export default function UpdateProfileInformation({
                         autoComplete="name"
                     />
 
-                    <InputError className="mt-2" message={errors.name} />
+                    <InputError className="mt-2" id="name-error" message={errors.name} />
                 </div>
 
                 <div>
@@ -63,6 +64,7 @@ export default function UpdateProfileInformation({
 
                     <TextInput
                         id="email"
+                        aria-describedby={errors.email ? 'email-error' : undefined}
                         type="email"
                         className="mt-1 block w-full"
                         value={data.email}
@@ -71,7 +73,7 @@ export default function UpdateProfileInformation({
                         autoComplete="username"
                     />
 
-                    <InputError className="mt-2" message={errors.email} />
+                    <InputError className="mt-2" id="email-error" message={errors.email} />
                 </div>
 
                 {mustVerifyEmail && user.email_verified_at === null && (
@@ -89,7 +91,7 @@ export default function UpdateProfileInformation({
                         </p>
 
                         {status === 'verification-link-sent' && (
-                            <div className="mt-2 text-sm font-medium text-green-600">
+                            <div role="status" className="mt-2 text-sm font-medium text-green-600">
                                 A new verification link has been sent to your
                                 email address.
                             </div>
@@ -107,7 +109,7 @@ export default function UpdateProfileInformation({
                         leave="transition ease-in-out"
                         leaveTo="opacity-0"
                     >
-                        <p className="text-sm text-gray-600">
+                        <p role="status" className="text-sm text-gray-600">
                             Saved.
                         </p>
                     </Transition>

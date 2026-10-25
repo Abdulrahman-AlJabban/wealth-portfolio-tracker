@@ -27,7 +27,7 @@ export default function ForgotPassword({ status }: { status?: string }) {
             </div>
 
             {status && (
-                <div className="mb-4 text-sm font-medium text-green-600">
+                <div role="status" className="mb-4 text-sm font-medium text-green-600">
                     {status}
                 </div>
             )}
@@ -35,6 +35,7 @@ export default function ForgotPassword({ status }: { status?: string }) {
             <form onSubmit={submit}>
                 <TextInput
                     id="email"
+                    aria-describedby={errors.email ? 'email-error' : undefined}
                     type="email"
                     name="email"
                     value={data.email}
@@ -43,7 +44,7 @@ export default function ForgotPassword({ status }: { status?: string }) {
                     onChange={(e) => setData('email', e.target.value)}
                 />
 
-                <InputError message={errors.email} className="mt-2" />
+                <InputError id="email-error" message={errors.email} className="mt-2" />
 
                 <div className="mt-4 flex items-center justify-end">
                     <PrimaryButton className="ms-4" disabled={processing}>

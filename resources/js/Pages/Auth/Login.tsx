@@ -33,7 +33,7 @@ export default function Login({
             <Head title="Log in" />
 
             {status && (
-                <div className="mb-4 text-sm font-medium text-green-600">
+                <div role="status" className="mb-4 text-sm font-medium text-green-600">
                     {status}
                 </div>
             )}
@@ -44,6 +44,7 @@ export default function Login({
 
                     <TextInput
                         id="email"
+                        aria-describedby={errors.email ? 'email-error' : undefined}
                         type="email"
                         name="email"
                         value={data.email}
@@ -53,7 +54,7 @@ export default function Login({
                         onChange={(e) => setData('email', e.target.value)}
                     />
 
-                    <InputError message={errors.email} className="mt-2" />
+                    <InputError id="email-error" message={errors.email} className="mt-2" />
                 </div>
 
                 <div className="mt-4">
@@ -61,6 +62,7 @@ export default function Login({
 
                     <TextInput
                         id="password"
+                        aria-describedby={errors.password ? 'password-error' : undefined}
                         type="password"
                         name="password"
                         value={data.password}
@@ -69,7 +71,7 @@ export default function Login({
                         onChange={(e) => setData('password', e.target.value)}
                     />
 
-                    <InputError message={errors.password} className="mt-2" />
+                    <InputError id="password-error" message={errors.password} className="mt-2" />
                 </div>
 
                 <div className="mt-4 block">

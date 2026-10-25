@@ -70,6 +70,7 @@ export default function UpdatePasswordForm({
 
                     <TextInput
                         id="current_password"
+                        aria-describedby={errors.current_password ? 'current_password-error' : undefined}
                         ref={currentPasswordInput}
                         value={data.current_password}
                         onChange={(e) =>
@@ -81,7 +82,7 @@ export default function UpdatePasswordForm({
                     />
 
                     <InputError
-                        message={errors.current_password}
+                        id="current_password-error" message={errors.current_password}
                         className="mt-2"
                     />
                 </div>
@@ -91,6 +92,7 @@ export default function UpdatePasswordForm({
 
                     <TextInput
                         id="password"
+                        aria-describedby={errors.password ? 'password-error' : undefined}
                         ref={passwordInput}
                         value={data.password}
                         onChange={(e) => setData('password', e.target.value)}
@@ -99,7 +101,7 @@ export default function UpdatePasswordForm({
                         autoComplete="new-password"
                     />
 
-                    <InputError message={errors.password} className="mt-2" />
+                    <InputError id="password-error" message={errors.password} className="mt-2" />
                 </div>
 
                 <div>
@@ -110,6 +112,7 @@ export default function UpdatePasswordForm({
 
                     <TextInput
                         id="password_confirmation"
+                        aria-describedby={errors.password_confirmation ? 'password_confirmation-error' : undefined}
                         value={data.password_confirmation}
                         onChange={(e) =>
                             setData('password_confirmation', e.target.value)
@@ -120,7 +123,7 @@ export default function UpdatePasswordForm({
                     />
 
                     <InputError
-                        message={errors.password_confirmation}
+                        id="password_confirmation-error" message={errors.password_confirmation}
                         className="mt-2"
                     />
                 </div>
@@ -135,7 +138,7 @@ export default function UpdatePasswordForm({
                         leave="transition ease-in-out"
                         leaveTo="opacity-0"
                     >
-                        <p className="text-sm text-gray-600">
+                        <p role="status" className="text-sm text-gray-600">
                             Saved.
                         </p>
                     </Transition>

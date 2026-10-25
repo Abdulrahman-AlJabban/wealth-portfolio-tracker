@@ -32,6 +32,7 @@ export default function Register() {
 
                     <TextInput
                         id="name"
+                        aria-describedby={errors.name ? 'name-error' : undefined}
                         name="name"
                         value={data.name}
                         className="mt-1 block w-full"
@@ -41,7 +42,7 @@ export default function Register() {
                         required
                     />
 
-                    <InputError message={errors.name} className="mt-2" />
+                    <InputError id="name-error" message={errors.name} className="mt-2" />
                 </div>
 
                 <div className="mt-4">
@@ -49,6 +50,7 @@ export default function Register() {
 
                     <TextInput
                         id="email"
+                        aria-describedby={errors.email ? 'email-error' : undefined}
                         type="email"
                         name="email"
                         value={data.email}
@@ -58,7 +60,7 @@ export default function Register() {
                         required
                     />
 
-                    <InputError message={errors.email} className="mt-2" />
+                    <InputError id="email-error" message={errors.email} className="mt-2" />
                 </div>
 
                 <div className="mt-4">
@@ -66,6 +68,7 @@ export default function Register() {
 
                     <TextInput
                         id="password"
+                        aria-describedby={errors.password ? 'password-error' : undefined}
                         type="password"
                         name="password"
                         value={data.password}
@@ -75,7 +78,7 @@ export default function Register() {
                         required
                     />
 
-                    <InputError message={errors.password} className="mt-2" />
+                    <InputError id="password-error" message={errors.password} className="mt-2" />
                 </div>
 
                 <div className="mt-4">
@@ -86,6 +89,7 @@ export default function Register() {
 
                     <TextInput
                         id="password_confirmation"
+                        aria-describedby={errors.password_confirmation ? 'password_confirmation-error' : undefined}
                         type="password"
                         name="password_confirmation"
                         value={data.password_confirmation}
@@ -98,7 +102,7 @@ export default function Register() {
                     />
 
                     <InputError
-                        message={errors.password_confirmation}
+                        id="password_confirmation-error" message={errors.password_confirmation}
                         className="mt-2"
                     />
                 </div>

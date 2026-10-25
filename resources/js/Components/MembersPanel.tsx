@@ -109,7 +109,7 @@ export default function MembersPanel({
 
     return (
         <section aria-labelledby="members-heading" className="space-y-4">
-            <h3 id="members-heading" className="text-base font-semibold text-gray-900">
+            <h3 id="members-heading" className="text-base font-medium text-gray-900">
                 Members
             </h3>
 

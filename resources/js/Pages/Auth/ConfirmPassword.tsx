@@ -34,6 +34,7 @@ export default function ConfirmPassword() {
 
                     <TextInput
                         id="password"
+                        aria-describedby={errors.password ? 'password-error' : undefined}
                         type="password"
                         name="password"
                         value={data.password}
@@ -42,7 +43,7 @@ export default function ConfirmPassword() {
                         onChange={(e) => setData('password', e.target.value)}
                     />
 
-                    <InputError message={errors.password} className="mt-2" />
+                    <InputError id="password-error" message={errors.password} className="mt-2" />
                 </div>
 
                 <div className="mt-4 flex items-center justify-end">

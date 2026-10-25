@@ -7,6 +7,7 @@ namespace App\Agent;
 use App\Agent\Tools\GetAllocationTool;
 use App\Agent\Tools\GetPortfolioSummaryTool;
 use App\Agent\Tools\ListTransactionsTool;
+use App\Agent\Tools\LogTransactionTool;
 use Laravel\Ai\Contracts\Agent;
 use Laravel\Ai\Contracts\HasTools;
 use Laravel\Ai\Contracts\Tool;
@@ -28,6 +29,7 @@ final class PortfolioAssistant implements Agent, HasTools
         'get_portfolio_summary' => GetPortfolioSummaryTool::class,
         'get_allocation' => GetAllocationTool::class,
         'list_transactions' => ListTransactionsTool::class,
+        'log_transaction' => LogTransactionTool::class,
     ];
 
     private AssistantTools $assistantTools;

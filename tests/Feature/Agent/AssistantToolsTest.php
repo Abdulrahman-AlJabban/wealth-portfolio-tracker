@@ -223,9 +223,12 @@ describe('guarded execution', function () {
     });
 });
 
-test('members are offered the three read tools', function (Role $role) {
+test('members are offered the read tools, and editors and owners also the write tool', function (Role $role, array $expected) {
     [$user, $portfolio] = portfolioWithRole($role);
 
-    expect(assistantToolsFor($user, $portfolio)->toolNamesForRole())
-        ->toBe(['get_portfolio_summary', 'get_allocation', 'list_transactions']);
-})->with([Role::Owner, Role::Editor, Role::Viewer]);
+    expect(assistantToolsFor($user, $portfolio)->toolNamesForRole())->toBe($expected);
+})->with([
+    'owner' => [Role::Owner, ['get_portfolio_summary', 'get_allocation', 'list_transactions', 'log_transaction']],
+    'editor' => [Role::Editor, ['get_portfolio_summary', 'get_allocation', 'list_transactions', 'log_transaction']],
+    'viewer' => [Role::Viewer, ['get_portfolio_summary', 'get_allocation', 'list_transactions']],
+]);

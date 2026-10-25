@@ -28,12 +28,15 @@ function offeredToolNames(PortfolioAssistant $assistant): array
     return array_map(fn ($tool) => $tool->name(), [...$assistant->tools()]);
 }
 
-test('can be built for every role and offers the read tools', function (Role $role) {
+test('can be built for every role and offers the tools that role may use', function (Role $role, array $expected) {
     [$user, $portfolio] = portfolioWithRole($role);
 
-    expect(offeredToolNames(assistantFor($user, $portfolio)))
-        ->toBe(['get_portfolio_summary', 'get_allocation', 'list_transactions']);
-})->with([Role::Owner, Role::Editor, Role::Viewer]);
+    expect(offeredToolNames(assistantFor($user, $portfolio)))->toBe($expected);
+})->with([
+    'owner' => [Role::Owner, ['get_portfolio_summary', 'get_allocation', 'list_transactions', 'log_transaction']],
+    'editor' => [Role::Editor, ['get_portfolio_summary', 'get_allocation', 'list_transactions', 'log_transaction']],
+    'viewer' => [Role::Viewer, ['get_portfolio_summary', 'get_allocation', 'list_transactions']],
+]);
 
 test('offers no tools to a non-member', function () {
     [, $portfolio] = portfolioWithRole(Role::Owner);

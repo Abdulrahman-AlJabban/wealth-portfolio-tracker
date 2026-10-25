@@ -5,6 +5,10 @@ declare(strict_types=1);
 namespace App\Agent;
 
 use App\Actions\LogTransaction;
+use App\Data\LogTransactionData;
+use App\Enums\Role;
+use App\Enums\TransactionSource;
+use App\Enums\TransactionType;
 use App\Models\AgentRun;
 use App\Models\Transaction;
 use App\Services\ValuationService;
@@ -27,6 +31,12 @@ final class AssistantTools
     /** Tools any member may be offered. */
     private const READ_TOOLS = ['get_portfolio_summary', 'get_allocation', 'list_transactions'];
 
+    /** Longest note the assistant may store with a transaction. */
+    private const MAX_NOTE_CHARS = 200;
+
+    /** Counts log_transaction calls in this run, so each call gets its own idempotency key. */
+    private int $logCallCount = 0;
+
     public function __construct(
         private AgentContext $context,
         private ValuationService $valuation,
@@ -44,6 +54,7 @@ final class AssistantTools
             'get_portfolio_summary' => $this->portfolioSummary(),
             'get_allocation' => $this->allocation(),
             'list_transactions' => $this->listTransactions($args),
+            'log_transaction' => $this->logAgentTransaction($args),
             default => throw ValidationException::withMessages(['tool' => 'Unknown tool.']),
         });
     }
@@ -58,9 +69,13 @@ final class AssistantTools
      */
     public function toolNamesForRole(): array
     {
-        $this->context->role();
+        $names = self::READ_TOOLS;
 
-        return self::READ_TOOLS;
+        if ($this->context->role()->atLeast(Role::Editor)) {
+            $names[] = 'log_transaction';
+        }
+
+        return $names;
     }
 
     /**
@@ -191,6 +206,83 @@ final class AssistantTools
             'price' => $transaction->price,
             'source' => $transaction->source->value,
         ])->all();
+    }
+
+    /**
+     * Logs a buy, sell, deposit or withdrawal through LogTransaction, exactly like the web form.
+     * The Action authorizes the user's role, validates the money strings, locks the portfolio, and
+     * enforces R3 and R4. This method only turns the model's arguments into the Action's input.
+     *
+     * @param  array<string, mixed>  $args  asset_symbol, type, quantity, price, optional note
+     * @return array<string, mixed>
+     */
+    private function logAgentTransaction(array $args): array
+    {
+        $symbol = $this->stringArgument($args, 'asset_symbol');
+        $typeName = $this->stringArgument($args, 'type');
+        $quantity = $this->stringArgument($args, 'quantity');
+        $price = $this->stringArgument($args, 'price');
+        $note = isset($args['note']) && is_string($args['note']) && $args['note'] !== ''
+            ? mb_substr($args['note'], 0, self::MAX_NOTE_CHARS)
+            : null;
+
+        // Only assets this portfolio may use (global ones and its own private ones).
+        $asset = $this->context->portfolio->usableAssets()->where('symbol', strtoupper($symbol))->first();
+
+        if ($asset === null) {
+            throw ValidationException::withMessages(['asset_symbol' => 'Asset not found in this portfolio.']);
+        }
+
+        // tryFrom, not from: an unknown type is an invalid request, never an uncaught ValueError.
+        $type = TransactionType::tryFrom(strtolower($typeName));
+
+        if ($type === null) {
+            throw ValidationException::withMessages(['type' => 'The type must be buy, sell, deposit or withdrawal.']);
+        }
+
+        // One key per call: a retry of the same HTTP request cannot double-log, but two identical
+        // trades the user really asked for in one run are two calls and both log.
+        $idempotencyKey = hash('sha256', $this->context->runId.'|'.++$this->logCallCount.'|log_transaction');
+
+        $transaction = $this->logTransaction->execute(
+            $this->context->user,
+            $this->context->portfolio,
+            new LogTransactionData(
+                assetId: $asset->id,
+                type: $type,
+                quantity: $quantity,
+                price: $price,
+                note: $note,
+                idempotencyKey: $idempotencyKey,
+            ),
+            TransactionSource::Agent,
+        );
+
+        return [
+            'transaction_id' => $transaction->id,
+            'type' => $transaction->type->value,
+            'symbol' => $asset->symbol,
+            'quantity' => $transaction->quantity,
+            'price' => $transaction->price,
+            'date' => $transaction->occurred_at->toIso8601String(),
+        ];
+    }
+
+    /**
+     * A required argument that must be a string. Money must never arrive as a JSON number,
+     * because a number has already been through a float.
+     *
+     * @param  array<string, mixed>  $args
+     */
+    private function stringArgument(array $args, string $key): string
+    {
+        $value = $args[$key] ?? null;
+
+        if (! is_string($value) || trim($value) === '') {
+            throw ValidationException::withMessages([$key => "{$key} is required as a string, for example \"0.5\" or \"BTC\"."]);
+        }
+
+        return trim($value);
     }
 
     /**

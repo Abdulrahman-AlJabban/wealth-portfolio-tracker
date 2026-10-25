@@ -13,7 +13,36 @@ use App\Models\Portfolio;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Sleep;
+use Laravel\Ai\Exceptions\ProviderOverloadedException;
 use Laravel\Ai\Responses\Data\ToolCall;
+
+test('uses the default provider, then the failover providers in order', function () {
+    config(['ai.default' => 'gemini', 'agent.failover' => ['gemini-fallback', 'gemini']]);
+    [$owner, $portfolio] = portfolioWithRole(Role::Owner);
+
+    expect(assistantFor($owner, $portfolio)->provider())->toBe(['gemini', 'gemini-fallback']);
+});
+
+test('an overloaded model fails over to the fallback model', function () {
+    config([
+        'ai.default' => 'gemini',
+        'agent.failover' => ['gemini-fallback'],
+        'ai.providers.gemini.key' => 'dummy-test-key',
+        'ai.providers.gemini.models.text.default' => 'main-model',
+        'ai.providers.gemini-fallback.key' => 'dummy-test-key',
+        'ai.providers.gemini-fallback.models.text.default' => 'backup-model',
+    ]);
+    Sleep::fake();
+    Http::fake(['generativelanguage.googleapis.com/*' => Http::response(['error' => ['code' => 503, 'status' => 'UNAVAILABLE']], 503)]);
+    [$owner, $portfolio] = portfolioWithRole(Role::Owner);
+
+    expect(fn () => assistantFor($owner, $portfolio)->prompt('Summarize my portfolio'))
+        ->toThrow(ProviderOverloadedException::class);
+
+    $models = Http::recorded()->map(fn (array $pair) => $pair[0]['model'])->all();
+    expect($models)->toBe(['main-model', 'backup-model']);
+});
 
 function assistantFor(User $user, Portfolio $portfolio): PortfolioAssistant
 {

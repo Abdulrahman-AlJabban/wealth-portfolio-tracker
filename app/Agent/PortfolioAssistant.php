@@ -18,7 +18,7 @@ use Laravel\Ai\Promptable;
 /**
  * The in-app assistant for one portfolio, acting for one user.
  *
- * Provider and model come from config/ai.php (no provider() or model() method here). The tool list is
+ * Provider and model come from config/ai.php, with failover from config/agent.php. The tool list is
  * filtered by role so the model is not offered what it cannot do, but that is not the security
  * boundary: every tool goes through AssistantTools and the Actions, which check the role themselves.
  */
@@ -43,6 +43,18 @@ final class PortfolioAssistant implements Agent, Conversational, HasTools
     public function __construct(public readonly AgentContext $context)
     {
         $this->assistantTools = app(AssistantTools::class, ['context' => $context]);
+    }
+
+    /**
+     * The default provider, then the failover ones. The SDK moves to the next one when a provider is
+     * overloaded (5xx), rate limited or unreachable, but only before any of the answer has streamed.
+     * Each provider uses the text model set in its own config/ai.php entry.
+     *
+     * @return list<string>
+     */
+    public function provider(): array
+    {
+        return array_values(array_unique([config('ai.default'), ...config('agent.failover')]));
     }
 
     public function instructions(): string

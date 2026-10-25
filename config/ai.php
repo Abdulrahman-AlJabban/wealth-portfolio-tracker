@@ -127,6 +127,17 @@ return [
             ],
         ],
 
+        // The same Gemini account with a second model, for config('agent.failover'). Google's 503
+        // "overloaded" is per model, so another model usually still answers.
+        'gemini-fallback' => [
+            'driver' => 'gemini',
+            'key' => env('GEMINI_API_KEY'),
+            'url' => env('GEMINI_URL', 'https://generativelanguage.googleapis.com/v1beta/'),
+            'models' => [
+                'text' => ['default' => env('GEMINI_FALLBACK_MODEL') ?: null],
+            ],
+        ],
+
         'groq' => [
             'driver' => 'groq',
             'key' => env('GROQ_API_KEY'),

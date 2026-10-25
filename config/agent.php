@@ -22,4 +22,8 @@ return [
     // A transaction the assistant proposes must be approved within this many minutes.
     'approval_ttl_minutes' => 10,
 
+    // Providers from config/ai.php to try, in order, when the default one is overloaded, rate limited
+    // or unreachable. Comma-separated, for example AI_FAILOVER=gemini-fallback. Empty means no failover.
+    'failover' => array_values(array_filter(array_map('trim', explode(',', (string) env('AI_FAILOVER', ''))))),
+
 ];

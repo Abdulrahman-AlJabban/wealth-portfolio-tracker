@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Actions\CreatePortfolio;
 use App\Actions\DeletePortfolio;
+use App\Agent\AssistantStatus;
 use App\Http\Requests\StorePortfolioRequest;
 use App\Models\Asset;
 use App\Models\Portfolio;
@@ -65,6 +66,8 @@ class PortfolioController extends Controller
                 'write' => Gate::allows('write', $portfolio),
                 'manage' => Gate::allows('manage', $portfolio),
             ],
+            // Lets the panel show "not configured" without making a request that would fail.
+            'assistant' => ['configured' => AssistantStatus::isConfigured()],
             'summary' => $valuation->summary($portfolio),
             'transactions' => $this->latestTransactions($portfolio),
             'assets' => $portfolio->usableAssets()

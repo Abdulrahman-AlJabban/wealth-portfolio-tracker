@@ -81,6 +81,7 @@ export type ShowProps = PageProps<{
     portfolio: { id: number; name: string; base_currency: string };
     role: Role;
     abilities: Abilities;
+    assistant: { configured: boolean };
     summary: Summary;
     transactions: TransactionRow[];
     assets: AssetOption[];

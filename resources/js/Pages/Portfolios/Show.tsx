@@ -1,3 +1,4 @@
+import AgentPanel from '@/Components/AgentPanel';
 import AssetsPanel from '@/Components/AssetsPanel';
 import HoldingsTable, { ProfitText } from '@/Components/HoldingsTable';
 import MembersPanel from '@/Components/MembersPanel';
@@ -24,7 +25,7 @@ function tabFromHash(): TabId {
     return TABS.find((tab) => tab.id === hash)?.id ?? 'holdings';
 }
 
-export default function Show({ portfolio, role, abilities, summary, transactions, assets, members }: ShowProps) {
+export default function Show({ portfolio, role, abilities, assistant, summary, transactions, assets, members }: ShowProps) {
     const [tab, setTab] = useState<TabId>(tabFromHash);
 
     function selectTab(id: TabId) {
@@ -155,12 +156,8 @@ export default function Show({ portfolio, role, abilities, summary, transactions
                         </div>
                     </div>
 
-                    {/* AgentPanel goes here (agent task list) */}
-                    <aside
-                        aria-label="Assistant"
-                        className="rounded-lg border border-dashed border-gray-300 p-5 text-sm text-gray-500"
-                    >
-                        The assistant will appear here.
+                    <aside aria-label="Assistant" className="lg:sticky lg:top-6 lg:self-start">
+                        <AgentPanel portfolioId={portfolio.id} configured={assistant.configured} canWrite={abilities.write} />
                     </aside>
                 </div>
             </div>

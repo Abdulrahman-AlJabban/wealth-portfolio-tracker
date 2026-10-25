@@ -96,3 +96,12 @@ Earlier phases are summarized in `DATABASE_DROPOFF.md`, `ACTIONS_DROPOFF.md` and
 - **Changed or rejected:**
   - Laravel's `$request->validate()` redirects (302) when the browser asks for `text/event-stream`, so the spec's 422 would not happen. The controller runs the validator itself and returns JSON 422.
   - The spec's two-step build (whole answer first, then streaming) was collapsed: the SDK's stream works with its fake, so the endpoint streams from the start and the tests read the real event sequence. Real token-by-token streaming over `php artisan serve` can only be seen with the live provider, so it is deferred to the final live check.
+
+### Task 9: AgentPanel UI
+
+- **Asked:** Claude Code to build the streaming chat panel and mount it on the portfolio page.
+- **Reviewed:** the panel sends only `message` and the server-issued `conversation_id`; every server event is parsed into `unknown` and shape-checked (TypeScript stays free of `any`); replies render as plain text, never HTML; the loading state is cleared in `finally`, so a network error or Stop never leaves it stuck.
+- **Changed or rejected:**
+  - Mounted in the slot reserved on the real show page (HTTP/UI Task 9), not on a separate minimal page.
+  - Added a 404 message ("That conversation could not be found...") that also clears the stored id, so a stale conversation does not keep failing.
+  - The manual "done when" checks (Alice summary, Alice logs a buy, Carol refused, no-key state) need the live model and are deferred to the final live check, at the user's request to save tokens.

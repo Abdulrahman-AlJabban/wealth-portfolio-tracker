@@ -132,6 +132,18 @@ describe('show', function () {
                 ->where('assets.0.price_as_of', '2026-10-24T12:00:00+00:00'));
     });
 
+    test('tells the page whether the assistant is configured', function (?string $key, bool $configured) {
+        config(['agent.enabled' => true, 'ai.default' => 'gemini', 'ai.providers.gemini.key' => $key]);
+        [$owner, $portfolio] = portfolioWithRole(Role::Owner);
+
+        $this->actingAs($owner)
+            ->get(route('portfolios.show', $portfolio))
+            ->assertInertia(fn (Assert $page) => $page->where('assistant', ['configured' => $configured]));
+    })->with([
+        'with a key' => ['dummy-test-key', true],
+        'without a key' => [null, false],
+    ]);
+
     test('owners get both abilities and viewers get neither', function (Role $role, bool $write, bool $manage) {
         [$user, $portfolio] = portfolioWithRole($role);
 

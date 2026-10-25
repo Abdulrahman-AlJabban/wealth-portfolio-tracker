@@ -4,13 +4,23 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-/**
- * Stub: each method is implemented in http_ui_tasks.md Task 5.
- */
+use App\Actions\CreatePrivateAsset;
+use App\Enums\AssetType;
+use App\Http\Requests\StoreAssetRequest;
+use App\Models\Portfolio;
+use Illuminate\Http\RedirectResponse;
+
 class AssetController extends Controller
 {
-    public function store(): never
+    public function store(StoreAssetRequest $request, Portfolio $portfolio, CreatePrivateAsset $createPrivateAsset): RedirectResponse
     {
-        abort(501);
+        $createPrivateAsset->execute(
+            $request->user(),
+            $portfolio,
+            $request->validated('name'),
+            AssetType::from($request->validated('type')),
+        );
+
+        return back()->with('success', 'Asset added.');
     }
 }

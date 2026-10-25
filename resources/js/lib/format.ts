@@ -39,10 +39,23 @@ export function formatSigned(value: string, maxFractionDigits = 2): string {
     }).format(asNumeric(value));
 }
 
+/** An ISO 8601 timestamp from the server as a short local date and time, e.g. "Oct 25, 2026, 2:05 PM". */
+export function formatDateTime(iso: string): string {
+    return new Intl.DateTimeFormat(LOCALE, {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+    }).format(new Date(iso));
+}
+
+/** True for "0", "0.00000000" or "-0.00000000". A plain string check, no parseFloat. */
+export function isZero(value: string): boolean {
+    return !/[1-9]/.test(value);
+}
+
 /**
  * True for a negative decimal string. A plain string check, no parseFloat.
  * "-0.00000000" is not negative.
  */
 export function isNegative(value: string): boolean {
-    return value.startsWith('-') && /[1-9]/.test(value);
+    return value.startsWith('-') && !isZero(value);
 }

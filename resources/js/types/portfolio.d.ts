@@ -35,6 +35,7 @@ export type Summary = {
     holdings: Holding[];
     total_value: string;
     total_cost: string;
+    total_pnl: string;
 };
 
 export type TransactionRow = {

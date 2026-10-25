@@ -124,7 +124,8 @@ test('totals equal the sum of the rows', function () {
 
     // 0.5 * 65000 + 4 * 3200.5, and 0.5 * 60000 + (4 * 3000 + 10)
     expect($summary['total_value'])->toBe('45302.00000000')
-        ->and($summary['total_cost'])->toBe('42010.00000000');
+        ->and($summary['total_cost'])->toBe('42010.00000000')
+        ->and($summary['total_pnl'])->toBe('3292.00000000');
 });
 
 test('other portfolios do not leak into the summary', function () {
@@ -143,6 +144,7 @@ test('an empty portfolio returns no holdings and zero totals', function () {
         'holdings' => [],
         'total_value' => '0.00000000',
         'total_cost' => '0.00000000',
+        'total_pnl' => '0.00000000',
     ]);
 });
 

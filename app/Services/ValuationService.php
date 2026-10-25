@@ -22,6 +22,7 @@ class ValuationService
      *     holdings: list<array{asset_id: int, symbol: ?string, name: string, type: string, quantity: string, price: string, price_as_of: ?string, value: string, cost: string, pnl: string}>,
      *     total_value: string,
      *     total_cost: string,
+     *     total_pnl: string,
      * }
      */
     public function summary(Portfolio $portfolio): array
@@ -91,6 +92,8 @@ class ValuationService
             'holdings' => $holdings,
             'total_value' => bcadd($totalValue, '0', 8),
             'total_cost' => bcadd($totalCost, '0', 8),
+            // Computed here so the UI never has to subtract money in JavaScript.
+            'total_pnl' => bcsub($totalValue, $totalCost, 8),
         ];
     }
 }

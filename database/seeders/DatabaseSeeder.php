@@ -77,7 +77,6 @@ class DatabaseSeeder extends Seeder
                 'type' => $type,
                 'quantity' => $qty,
                 'price' => $price,
-                'fee' => 0,
                 'occurred_at' => now()->subDays(30),
                 'created_by' => $alice->id,
                 'source' => 'user',

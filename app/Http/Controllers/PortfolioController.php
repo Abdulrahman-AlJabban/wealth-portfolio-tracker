@@ -121,7 +121,6 @@ class PortfolioController extends Controller
                 'type' => $transaction->type->value,
                 'quantity' => $transaction->quantity,
                 'price' => $transaction->price,
-                'fee' => $transaction->fee,
                 'occurred_at' => $transaction->occurred_at->toIso8601String(),
                 'source' => $transaction->source->value,
                 'note' => $transaction->note,

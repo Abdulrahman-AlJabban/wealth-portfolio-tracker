@@ -32,7 +32,7 @@ class ValuationService
             ->where('portfolio_id', $portfolio->id)
             ->orderBy('occurred_at')
             ->orderBy('id')
-            ->get(['asset_id', 'type', 'quantity', 'price', 'fee'])
+            ->get(['asset_id', 'type', 'quantity', 'price'])
             ->groupBy('asset_id');
 
         $assets = Asset::query()
@@ -49,11 +49,10 @@ class ValuationService
             $quantity = '0';
             $cost = '0';
 
-            // Average cost: inflows add their full cost, outflows remove the average cost of what left.
+            // Average cost: inflows add quantity × price, outflows remove the average cost of what left.
             foreach ($transactions as $transaction) {
                 if (! $transaction->type->isOutflow()) {
-                    $purchaseCost = bcadd(bcmul($transaction->quantity, $transaction->price, 8), $transaction->fee, 8);
-                    $cost = bcadd($cost, $purchaseCost, 8);
+                    $cost = bcadd($cost, bcmul($transaction->quantity, $transaction->price, 8), 8);
                     $quantity = bcadd($quantity, $transaction->quantity, 8);
                 } elseif (bccomp($quantity, '0', 8) > 0) {
                     $averageCost = bcdiv($cost, $quantity, 8);

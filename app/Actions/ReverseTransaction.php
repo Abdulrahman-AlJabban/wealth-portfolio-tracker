@@ -56,7 +56,6 @@ final class ReverseTransaction
                 'type' => $type,
                 'quantity' => $original->quantity,
                 'price' => $original->price,
-                'fee' => '0',
                 'occurred_at' => now(),
                 'created_by' => $user->id,
                 'source' => TransactionSource::User,

@@ -43,7 +43,6 @@ export type TransactionRow = {
     type: TransactionType;
     quantity: string;
     price: string;
-    fee: string;
     occurred_at: string;
     source: TransactionSource;
     note: string | null;

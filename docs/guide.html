@@ -206,7 +206,7 @@ footer { margin-top: 64px; padding-top: 16px; border-top: 1px solid var(--rule);
   <h1>Wealth Portfolio Tracker</h1>
   <p class="lede">A shared investment ledger. Family members and partners track holdings, cost basis and profit in one portfolio, each with a role, and an AI assistant can answer questions and propose trades that a person approves.</p>
   <div class="ledger-line">
-    <span><b>399</b> tests passing</span>
+    <span><b>394</b> tests passing</span>
     <span><b>5</b> domain rules (R1 to R5)</span>
     <span><b>3</b> roles</span>
     <span>money stored as <b>DECIMAL(24,8)</b></span>
@@ -428,7 +428,6 @@ footer { margin-top: 64px; padding-top: 16px; border-top: 1px solid var(--rule);
       <li><span>type</span><span>buy | sell | deposit | withdrawal</span></li>
       <li><span>quantity</span><span>DECIMAL(24,8), positive</span></li>
       <li><span>price</span><span>DECIMAL(24,8)</span></li>
-      <li><span>fee</span><span>DECIMAL(24,8), 0</span></li>
       <li><span>occurred_at</span><span>datetime</span></li>
       <li><span>created_by</span><span>→ users, restrict</span></li>
       <li><span>source</span><span>user | agent</span></li>
@@ -490,7 +489,7 @@ footer { margin-top: 64px; padding-top: 16px; border-top: 1px solid var(--rule);
   <h2><span class="no">09</span>Valuation</h2>
   <p><code>ValuationService::summary()</code> is the one place that turns the ledger into numbers. The dashboard and the assistant both use it, so they cannot disagree. It runs three queries however many assets are held: transactions, assets, and their latest prices.</p>
   <ul>
-    <li><strong>Inflows</strong> (buy, deposit) add <code>quantity × price + fee</code> to cost and add the quantity.</li>
+    <li><strong>Inflows</strong> (buy, deposit) add <code>quantity × price</code> to cost and add the quantity.</li>
     <li><strong>Outflows</strong> (sell, withdrawal) remove the average cost of what left.</li>
     <li>Assets with zero quantity are left out. An asset with no price is valued at 0 and shows "No price yet".</li>
     <li><code>total_pnl</code> is computed on the server, so the browser never subtracts money.</li>
@@ -509,7 +508,7 @@ footer { margin-top: 64px; padding-top: 16px; border-top: 1px solid var(--rule);
     <li><div><strong>Route.</strong> <code>POST portfolios/{portfolio}/transactions</code>, behind <code>auth</code>.</div></li>
     <li><div><strong>Form Request.</strong> <code>LogTransactionRequest</code> checks the shape and builds <code>LogTransactionData</code>.</div></li>
     <li><div><strong>Action: authorize.</strong> <code>LogTransaction</code> checks <code>write</code> first; a Viewer gets 403.</div></li>
-    <li><div><strong>Action: validate.</strong> Quantity positive with at most 8 decimals, price and fee non-negative, date not in the future.</div></li>
+    <li><div><strong>Action: validate.</strong> Quantity positive with at most 8 decimals, price non-negative, date not in the future.</div></li>
     <li><div><strong>Action: lock and check.</strong> Inside a transaction: lock the portfolio row, look up the idempotency key, apply R3 and the single-currency rule.</div></li>
     <li><div><strong>Action: write and verify.</strong> Insert the row, then for a sell or withdrawal replay the ledger (R4). A failure rolls the insert back.</div></li>
     <li><div><strong>Response.</strong> Redirect back with "Transaction logged." or with the error under the right field.</div></li>
@@ -643,7 +642,7 @@ GEMINI_MODEL=gemini-3.1-flash-lite   # empty uses the SDK default</code></pre>
 <!-- 14 -->
 <section id="testing">
   <h2><span class="no">14</span>Testing</h2>
-  <p><code>./vendor/bin/pest</code> runs 399 tests on the MySQL database <code>wealth_test</code>. Every feature test blocks real HTTP requests, so no test can reach the AI provider or spend tokens.</p>
+  <p><code>./vendor/bin/pest</code> runs 394 tests on the MySQL database <code>wealth_test</code>. Every feature test blocks real HTTP requests, so no test can reach the AI provider or spend tokens.</p>
   <div class="table-wrap"><table>
     <thead><tr><th>Area</th><th>Main files</th></tr></thead>
     <tbody>
@@ -699,7 +698,7 @@ GEMINI_MODEL=gemini-3.1-flash-lite   # empty uses the SDK default</code></pre>
     <div class="panel"><h4>Ledger and data</h4><ul>
       <li>Query-builder updates bypass the R5 model guard (triggers not built)</li>
       <li>Single currency: market assets are USD, so other-currency portfolios hold only private assets</li>
-      <li>Average-cost accounting only; sell fees are not part of profit</li>
+      <li>Average-cost accounting only; trading fees are not tracked</li>
       <li>Cash is not debited on buys</li>
       <li>Market prices refresh every 5 minutes (free CoinGecko quota); AAPL is priced through Apple xStock, a tokenized stand-in</li>
       <li>No concurrency test; locks are reasoned about, not run in parallel</li>
@@ -731,7 +730,7 @@ PHP_CLI_SERVER_WORKERS=4 php artisan serve
 npm run dev
 
 # Checks
-./vendor/bin/pest                    # all 399 tests (wealth_test database)
+./vendor/bin/pest                    # all 394 tests (wealth_test database)
 ./vendor/bin/pest --filter=Agent     # assistant tests
 ./vendor/bin/pest --filter=RulesTest # R1 to R5
 vendor/bin/pint --dirty              # format changed PHP

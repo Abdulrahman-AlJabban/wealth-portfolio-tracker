@@ -17,7 +17,7 @@ Read it together with the plan you already have. Plan references use your own nu
 | `http_ui_tasks.md` (Tasks 0 to 14) | Done. |
 | `ai_agent_tasks.md` (Tasks 0 to 12) | Done, **including Task 11 (human approval)**. Live browser rehearsal still owed. |
 | BUILD_GUIDE tiers | T0 partly (plan docs yes; `docs/decisions.md` and `docs/rules.md` never written; content lives in BUILD_GUIDE and the reports). T1, T2, T4 done. **T3 (price sync) done after the task lists** (section 6b). **T5 done as polling**, not Reverb (section 6b). |
-| Tests | **399 passing, 1,090 assertions**, on MySQL `wealth_test`. 127 agent tests, 17 market-price tests. |
+| Tests | **394 passing, 1,078 assertions**, on MySQL `wealth_test`. 127 agent tests, 17 market-price tests. |
 | Repository | About 65 local commits on `master`. **No remote yet.** README is still Laravel's stock page plus one "Configure the agent" section. |
 
 Reports written along the way (in the repo): `DATABASE_DROPOFF.md`, `ACTIONS_DROPOFF.md`, `HTTP_UI_DROPOFF.md`, `docs/ai-workflow.md` (one entry per agent task), `docs/demo.md` (five demo scripts), `docs/guide.html` (static visual guide).
@@ -154,6 +154,16 @@ The user asked for live BTC prices after the agent work. No task list existed fo
 
 ---
 
+## 6c. Fee removed; unit price stays user-entered
+
+**Fee removed (user decision, scope control).** The PDF never mentions fees; the `fee` column came from BUILD_GUIDE §5. It was removed everywhere: a new migration `remove_fee_from_transactions_table` (its `down()` restores the column; rollback and re-migrate were both run), the model cast, `LogTransactionData`, `LogTransaction` (validation and the idempotency comparison), the Form Request, `ReverseTransaction`, `ValuationService` (cost basis is now `quantity × price`), the transactions prop, the TypeScript type, the form field, and the seeder. Five fee-only tests were deleted; the suite is now 394 tests. A trap that was caught: `fee` was the DTO's 5th positional constructor argument, so five test calls that passed it by position would have silently shifted into `occurredAt`; the IDE's type checker and a positional-argument scan found them all.
+
+**Why the unit price is not taken from CoinGecko (interview answer).** The user asked whether a buy or sell should use the synced market price. No: the market price answers "what is it worth now" (valuation), the transaction price answers "what did I actually pay" (cost basis). This is a tracker, not a broker; the user records a trade made elsewhere. Forcing the market price would make backdated trades wrong (a buy from last week at today's price), ignore exchange spread and slippage, and make profit meaningless (cost would follow value). Line for the video: *"the market price values the portfolio; the transaction price records history. A tracker must never rewrite what the user actually paid."*
+
+**What was built instead:** the transaction form **suggests** the price. Picking an asset fills the unit price with its latest price (market price for global assets, latest valuation for private ones), shown with a hint "Market price 67,123.45, as of …. Change it to what you actually paid." The field stays editable, and the 30-second price refresh never overwrites what the user typed. The assistant's `log_transaction` tool still requires the user to state a price.
+
+---
+
 ## 7. Where the finished system differs from BUILD_GUIDE
 
 | BUILD_GUIDE | Finished system |
@@ -209,7 +219,7 @@ Mutation checks that proved tests catch real mistakes: eager loading removed (qu
 - One real `php artisan market:sync` with `MARKET_DRIVER=coingecko` and the CoinGecko key, to confirm the `apple-xstock` id and the response shape.
 - Record the 10 to 15 minute video; reply to the email with both links.
 
-**Known gaps to state in the video:** prices refresh every 5 minutes (free API quota), AAPL is a tokenized stand-in, live updates are polling rather than push, and there are no collaborative realtime features (presence, notes); the R5 query-builder gap; single currency; average cost only, sell fees not in profit, no cash debit; no concurrency test; transaction list capped at 50; assistant has no token budget (only 20 messages a minute), no offline prompt evaluations, one provider tested, a page refresh starts a new chat, plain-text replies, up to 100 messages replayed per conversation. The visual design is a restrained Breeze look (gray and indigo); the 375 px layout and focus rings were checked by reading code only.
+**Known gaps to state in the video:** prices refresh every 5 minutes (free API quota), AAPL is a tokenized stand-in, live updates are polling rather than push, and there are no collaborative realtime features (presence, notes); the R5 query-builder gap; single currency; average cost only, no trading fees (removed to keep scope tight), no cash debit; no concurrency test; transaction list capped at 50; assistant has no token budget (only 20 messages a minute), no offline prompt evaluations, one provider tested, a page refresh starts a new chat, plain-text replies, up to 100 messages replayed per conversation. The visual design is a restrained Breeze look (gray and indigo); the 375 px layout and focus rings were checked by reading code only.
 
 **Present but not asked for by the PDF** (mention briefly or not at all): human approval (worth leading with), Laravel Boost tooling in the repo, the many written reports (the PDF says no written report is required), and hardening such as idempotency keys, soft deletes, unique private names, the architecture test and the accessibility pass.
 
@@ -226,6 +236,6 @@ Mutation checks that proved tests catch real mistakes: eager loading removed (qu
 | Agent permissions | Tool list filtered by role but not the boundary; the Action refuses a Viewer even when the tool is called directly; approval re-checks the role; `agent_runs` audit; prompt injection stays data | Demo 3 (panel + Tinker), demo 4 |
 | Stack trade-offs | Laravel + Inertia, no Express and no API tier; MySQL DECIMAL vs Postgres RLS; Actions instead of policy-in-schema; decimal strings; the type-safety answer (Form Requests + DTOs + enums + hand-written TS types + `assertInertia` tests; code generation considered, declined) | BUILD_GUIDE §15.2 |
 | Agentic execution | Plan → task lists → one task, report, review, "next"; verification and mutation checks; reading SDK source; the table in section 8 | `docs/ai_agent_tasks.md`, `docs/ai-workflow.md` |
-| Tests and next steps | 399 tests; network blocked in every test; next: Reverb for collaborative realtime, a real stock-data provider, R5 triggers, README and type generation | `./vendor/bin/pest` |
+| Tests and next steps | 394 tests; network blocked in every test; next: Reverb for collaborative realtime, a real stock-data provider, R5 triggers, README and type generation | `./vendor/bin/pest` |
 
-Numbers worth saying: 399 tests; 127 agent tests; 17 market-price tests; sync every 5 minutes = about 8,640 of the free 10,000 CoinGecko calls a month; page polls every 30 seconds; 15 required agent test names; 5 rules; 4 tools; seeded value 132,600.00 with profit +8,500.00; smallest unit 0.00000001; approval expiry 10 minutes; throttle 20 messages a minute.
+Numbers worth saying: 394 tests; 127 agent tests; 17 market-price tests; sync every 5 minutes = about 8,640 of the free 10,000 CoinGecko calls a month; page polls every 30 seconds; 15 required agent test names; 5 rules; 4 tools; seeded value 132,600.00 with profit +8,500.00; smallest unit 0.00000001; approval expiry 10 minutes; throttle 20 messages a minute.

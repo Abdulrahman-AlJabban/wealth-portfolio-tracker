@@ -21,7 +21,7 @@ use Illuminate\Validation\ValidationException;
 function logged(User $user, Portfolio $portfolio, Asset $asset, TransactionType $type, string $quantity): Transaction
 {
     return app(LogTransaction::class)->execute(
-        $user, $portfolio, new LogTransactionData($asset->id, $type, $quantity, '100', '2'),
+        $user, $portfolio, new LogTransactionData($asset->id, $type, $quantity, '100'),
     );
 }
 
@@ -44,7 +44,6 @@ test('reversing a buy appends an opposite row and restores the position', functi
         'type' => 'sell',
         'quantity' => '0.50000000',
         'price' => '100.00000000',
-        'fee' => '0.00000000',
         'occurred_at' => '2026-10-25 12:00:00',
         'created_by' => $editor->id,
         'source' => 'user',
@@ -72,8 +71,8 @@ test('the original row is left untouched', function () {
 
     app(ReverseTransaction::class)->execute($editor, $portfolio, $buy);
 
-    expect($buy->fresh()->only(['type', 'quantity', 'fee', 'reverses_id', 'updated_at']))
-        ->toEqual($buy->only(['type', 'quantity', 'fee', 'reverses_id', 'updated_at']));
+    expect($buy->fresh()->only(['type', 'quantity', 'reverses_id', 'updated_at']))
+        ->toEqual($buy->only(['type', 'quantity', 'reverses_id', 'updated_at']));
 });
 
 test('a row cannot be reversed twice', function () {

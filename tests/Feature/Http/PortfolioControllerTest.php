@@ -93,7 +93,6 @@ describe('show', function () {
                     'type' => 'buy',
                     'quantity' => '2.00000000',
                     'price' => '100.00000000',
-                    'fee' => '0.00000000',
                     'occurred_at' => '2026-10-25T12:00:00+00:00',
                     'source' => 'user',
                     'note' => 'First',

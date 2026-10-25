@@ -19,7 +19,6 @@ final readonly class LogTransactionData
         public TransactionType $type,
         public string $quantity,
         public string $price,
-        public string $fee = '0',
         public ?CarbonImmutable $occurredAt = null,
         public ?string $note = null,
         public ?string $idempotencyKey = null,

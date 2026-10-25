@@ -88,7 +88,6 @@ final class LogTransaction
                 'type' => $data->type,
                 'quantity' => $data->quantity,
                 'price' => $data->price,
-                'fee' => $data->fee,
                 'occurred_at' => $data->occurredAt ?? now(),
                 'created_by' => $user->id,
                 'source' => $source,
@@ -124,10 +123,6 @@ final class LogTransaction
             $errors['price'] = 'Price must be zero or a positive decimal with at most 8 decimal places.';
         }
 
-        if (! $this->isDecimal($data->fee)) {
-            $errors['fee'] = 'Fee must be zero or a positive decimal with at most 8 decimal places.';
-        }
-
         if ($data->occurredAt?->isFuture()) {
             $errors['occurred_at'] = 'The transaction date cannot be in the future.';
         }
@@ -149,8 +144,7 @@ final class LogTransaction
         $isSameRequest = $existing->asset_id === $data->assetId
             && $existing->type === $data->type
             && bccomp($existing->quantity, $data->quantity, 8) === 0
-            && bccomp($existing->price, $data->price, 8) === 0
-            && bccomp($existing->fee, $data->fee, 8) === 0;
+            && bccomp($existing->price, $data->price, 8) === 0;
 
         if (! $isSameRequest) {
             throw ValidationException::withMessages([

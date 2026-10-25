@@ -18,7 +18,6 @@ class Transaction extends Model
         'source' => TransactionSource::class,
         'quantity' => 'decimal:8',
         'price' => 'decimal:8',
-        'fee' => 'decimal:8',
         'occurred_at' => 'datetime',
     ];
 

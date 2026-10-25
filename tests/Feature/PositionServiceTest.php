@@ -22,7 +22,6 @@ function ledgerRow(Portfolio $portfolio, Asset $asset, TransactionType $type, st
         'type' => $type,
         'quantity' => $quantity,
         'price' => '100',
-        'fee' => '0',
         'occurred_at' => $occurredAt,
         'created_by' => $portfolio->created_by,
         'source' => 'user',

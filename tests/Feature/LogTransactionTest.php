@@ -24,7 +24,7 @@ describe('authorization', function () {
         $btc = globalAsset();
 
         $transaction = app(LogTransaction::class)->execute(
-            $user, $portfolio, new LogTransactionData($btc->id, TransactionType::Buy, '0.5', '60000', '1.25', note: 'First buy'),
+            $user, $portfolio, new LogTransactionData($btc->id, TransactionType::Buy, '0.5', '60000', note: 'First buy'),
         );
 
         $this->assertDatabaseHas('transactions', [
@@ -34,7 +34,6 @@ describe('authorization', function () {
             'type' => 'buy',
             'quantity' => '0.50000000',
             'price' => '60000.00000000',
-            'fee' => '1.25000000',
             'occurred_at' => '2026-10-25 12:00:00',
             'created_by' => $user->id,
             'source' => 'user',
@@ -208,15 +207,6 @@ describe('input validation', function () {
         ))->toThrow(ValidationException::class, 'Price must be zero or a positive decimal with at most 8 decimal places.');
     })->with(['-5', 'abc', '1e3', '1.123456789']);
 
-    test('bad fees are rejected', function (string $fee) {
-        [$editor, $portfolio] = portfolioWithRole(Role::Editor);
-        $btc = globalAsset();
-
-        expect(fn () => app(LogTransaction::class)->execute(
-            $editor, $portfolio, new LogTransactionData($btc->id, TransactionType::Buy, '1', '100', $fee),
-        ))->toThrow(ValidationException::class, 'Fee must be zero or a positive decimal with at most 8 decimal places.');
-    })->with(['-1', 'abc', '1e3']);
-
     test('a zero price is accepted', function () {
         [$editor, $portfolio] = portfolioWithRole(Role::Editor);
         $btc = globalAsset();
@@ -260,25 +250,24 @@ describe('idempotency', function () {
         $this->assertDatabaseCount('transactions', 1);
     });
 
-    test('the same key with different trade details is rejected', function (string $symbol, TransactionType $type, string $quantity, string $price, string $fee) {
+    test('the same key with different trade details is rejected', function (string $symbol, TransactionType $type, string $quantity, string $price) {
         [$editor, $portfolio] = portfolioWithRole(Role::Editor);
         $assets = ['BTC' => globalAsset('BTC'), 'ETH' => globalAsset('ETH')];
         $log = app(LogTransaction::class);
         $log->execute($editor, $portfolio, new LogTransactionData(
-            $assets['BTC']->id, TransactionType::Buy, '1', '100', '0', idempotencyKey: 'retry-1',
+            $assets['BTC']->id, TransactionType::Buy, '1', '100', idempotencyKey: 'retry-1',
         ));
 
         expect(fn () => $log->execute($editor, $portfolio, new LogTransactionData(
-            $assets[$symbol]->id, $type, $quantity, $price, $fee, idempotencyKey: 'retry-1',
+            $assets[$symbol]->id, $type, $quantity, $price, idempotencyKey: 'retry-1',
         )))->toThrow(ValidationException::class, 'This idempotency key was already used for a different transaction.');
 
         $this->assertDatabaseCount('transactions', 1);
     })->with([
-        'different quantity' => ['BTC', TransactionType::Buy, '2', '100', '0'],
-        'different price' => ['BTC', TransactionType::Buy, '1', '101', '0'],
-        'different fee' => ['BTC', TransactionType::Buy, '1', '100', '1'],
-        'different type' => ['BTC', TransactionType::Deposit, '1', '100', '0'],
-        'different asset' => ['ETH', TransactionType::Buy, '1', '100', '0'],
+        'different quantity' => ['BTC', TransactionType::Buy, '2', '100'],
+        'different price' => ['BTC', TransactionType::Buy, '1', '101'],
+        'different type' => ['BTC', TransactionType::Deposit, '1', '100'],
+        'different asset' => ['ETH', TransactionType::Buy, '1', '100'],
     ]);
 
     test('the same key with equal amounts written differently returns the same row', function () {
@@ -287,7 +276,7 @@ describe('idempotency', function () {
         $log = app(LogTransaction::class);
 
         $first = $log->execute($editor, $portfolio, new LogTransactionData($btc->id, TransactionType::Buy, '1', '100', idempotencyKey: 'retry-1'));
-        $second = $log->execute($editor, $portfolio, new LogTransactionData($btc->id, TransactionType::Buy, '1.0', '100.00', '0.0', idempotencyKey: 'retry-1'));
+        $second = $log->execute($editor, $portfolio, new LogTransactionData($btc->id, TransactionType::Buy, '1.0', '100.00', idempotencyKey: 'retry-1'));
 
         expect($second->id)->toBe($first->id);
     });

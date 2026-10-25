@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\DB;
 /**
  * Inserts a ledger row directly, so each test controls exact quantities, prices and dates.
  */
-function valuationRow(Portfolio $portfolio, Asset $asset, TransactionType $type, string $quantity, string $price, string $occurredAt, string $fee = '0'): void
+function valuationRow(Portfolio $portfolio, Asset $asset, TransactionType $type, string $quantity, string $price, string $occurredAt): void
 {
     Transaction::create([
         'portfolio_id' => $portfolio->id,
@@ -22,7 +22,6 @@ function valuationRow(Portfolio $portfolio, Asset $asset, TransactionType $type,
         'type' => $type,
         'quantity' => $quantity,
         'price' => $price,
-        'fee' => $fee,
         'occurred_at' => $occurredAt,
         'created_by' => $portfolio->created_by,
         'source' => 'user',
@@ -60,14 +59,6 @@ test('average cost removes the average price of what was sold', function () {
         'value' => '480.00000000',
         'pnl' => '30.00000000',
     ]);
-});
-
-test('fees are part of the cost of an inflow', function () {
-    [, $portfolio] = portfolioWithRole(Role::Owner);
-    $btc = globalAsset();
-    valuationRow($portfolio, $btc, TransactionType::Buy, '2', '100', '2026-10-01 10:00:00', '5');
-
-    expect(app(ValuationService::class)->summary($portfolio)['holdings'][0]['cost'])->toBe('205.00000000');
 });
 
 test('the price comes from the latest snapshot, not the oldest', function () {
@@ -118,14 +109,14 @@ test('totals equal the sum of the rows', function () {
     marketPrice($btc, '65000', '2026-10-24 12:00:00');
     marketPrice($eth, '3200.5', '2026-10-24 12:00:00');
     valuationRow($portfolio, $btc, TransactionType::Buy, '0.5', '60000', '2026-10-01 10:00:00');
-    valuationRow($portfolio, $eth, TransactionType::Buy, '4', '3000', '2026-10-01 10:00:00', '10');
+    valuationRow($portfolio, $eth, TransactionType::Buy, '4', '3000', '2026-10-01 10:00:00');
 
     $summary = app(ValuationService::class)->summary($portfolio);
 
-    // 0.5 * 65000 + 4 * 3200.5, and 0.5 * 60000 + (4 * 3000 + 10)
+    // 0.5 * 65000 + 4 * 3200.5 = 45302, and 0.5 * 60000 + 4 * 3000 = 42000
     expect($summary['total_value'])->toBe('45302.00000000')
-        ->and($summary['total_cost'])->toBe('42010.00000000')
-        ->and($summary['total_pnl'])->toBe('3292.00000000');
+        ->and($summary['total_cost'])->toBe('42000.00000000')
+        ->and($summary['total_pnl'])->toBe('3302.00000000');
 });
 
 test('other portfolios do not leak into the summary', function () {

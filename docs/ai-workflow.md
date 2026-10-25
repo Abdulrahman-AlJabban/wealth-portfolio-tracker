@@ -35,3 +35,13 @@ Earlier phases are summarized in `DATABASE_DROPOFF.md`, `ACTIONS_DROPOFF.md` and
 - **Asked:** Claude Code to add `config/agent.php` and `AssistantStatus::isConfigured()`.
 - **Reviewed:** that the check works for any provider in `config/ai.php` (all keep their credential under `key`), never reads the key out, and that tests set the key themselves so they do not depend on the real `.env`.
 - **Changed or rejected:** the check is "enabled and the configured provider's `key` is non-empty". Stated limitation: providers that authenticate without a key (Ollama, Bedrock with default AWS credentials) would show as not configured. Only Gemini is used here.
+
+### Task 1 follow-up: live checks with a real key
+
+- **Asked:** Claude Code to run the two live checks once a Gemini key was added to `.env`.
+- **Reviewed:** the failures by printing each wrapped exception with the key redacted, instead of guessing.
+  - `gemini-3.8-flash` (the SDK default) failed intermittently: Google returned **503 "high demand"** or hung for 60 seconds. A provider problem, not the key or the code.
+  - `gemini-3.1-flash-lite` answered in about 5 seconds.
+- **Changed or rejected:**
+  - The first tool check returned **400**. Cause: the test tool was an anonymous PHP class without `name()`, so the SDK sent a class name like `class@anonymous...` as the function name, which Google rejects. With `name()` returning `get_time`, **tool calling works**. Rule for Task 5: every tool class defines `name()`.
+  - Local `.env` uses `GEMINI_MODEL=gemini-3.1-flash-lite`. The committed config still defaults to the SDK's model when the variable is empty.

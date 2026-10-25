@@ -4,7 +4,6 @@ namespace Database\Seeders;
 
 use App\Models\Asset;
 use App\Models\Portfolio;
-use App\Models\PortfolioMember;
 use App\Models\PriceSnapshot;
 use App\Models\Transaction;
 use App\Models\User;

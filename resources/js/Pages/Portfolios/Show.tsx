@@ -157,7 +157,7 @@ export default function Show({ portfolio, role, abilities, assistant, summary, t
                     </div>
 
                     <aside aria-label="Assistant" className="lg:sticky lg:top-6 lg:self-start">
-                        <AgentPanel portfolioId={portfolio.id} configured={assistant.configured} canWrite={abilities.write} />
+                        <AgentPanel portfolioId={portfolio.id} portfolioName={portfolio.name} configured={assistant.configured} canWrite={abilities.write} />
                     </aside>
                 </div>
             </div>

@@ -6,9 +6,13 @@ namespace App\Agent;
 
 use App\Models\AssistantThread;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
+use Laravel\Ai\Approvals\PendingApproval;
 use Laravel\Ai\Contracts\ConversationStore;
+use Laravel\Ai\Contracts\ResolvesPendingApprovals;
 use Laravel\Ai\Models\Conversation;
 
 /**
@@ -17,6 +21,9 @@ use Laravel\Ai\Models\Conversation;
  */
 final class AssistantConversations
 {
+    /**
+     * @param  ConversationStore&ResolvesPendingApprovals  $store  the SDK's database store implements both
+     */
     public function __construct(private ConversationStore $store) {}
 
     /**
@@ -38,6 +45,35 @@ final class AssistantConversations
 
         // History is loaded from the server's store; nothing the client sent is replayed.
         return $assistant->continue($conversationId, as: $context->user);
+    }
+
+    /**
+     * The transaction the assistant is waiting to have approved, if it is still pending and not expired.
+     * Call it after open(), which has already checked the conversation belongs to this user and portfolio.
+     *
+     * @throws ValidationException when there is no such pending request, or it has expired
+     */
+    public function pendingApproval(string $conversationId, string $toolCallId): PendingApproval
+    {
+        $pending = collect($this->store->pendingApprovalsFor($conversationId))
+            ->first(fn (PendingApproval $approval): bool => $approval->id === $toolCallId);
+
+        // Already approved, already rejected, or never asked: the same answer, so approving twice fails.
+        if ($pending === null) {
+            throw ValidationException::withMessages(['tool_call_id' => 'This request is no longer waiting for approval.']);
+        }
+
+        // The SDK has no expiry, so we enforce one: the paused turn is the newest message in the conversation.
+        $pausedAt = DB::table(config('ai.conversations.tables.messages', 'agent_conversation_messages'))
+            ->where('conversation_id', $conversationId)
+            ->orderByDesc('created_at')
+            ->value('created_at');
+
+        if ($pausedAt === null || Carbon::parse($pausedAt)->addMinutes((int) config('agent.approval_ttl_minutes'))->isPast()) {
+            throw ValidationException::withMessages(['tool_call_id' => 'This request has expired. Ask the assistant again.']);
+        }
+
+        return $pending;
     }
 
     private function start(AgentContext $context, string $firstMessage): string

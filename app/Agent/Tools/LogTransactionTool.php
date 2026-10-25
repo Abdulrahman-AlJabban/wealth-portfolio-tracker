@@ -6,15 +6,22 @@ namespace App\Agent\Tools;
 
 use App\Agent\AssistantTools;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
+use Laravel\Ai\Concerns\InteractsWithApprovals;
+use Laravel\Ai\Contracts\Approvable;
 use Laravel\Ai\Contracts\Tool;
 use Laravel\Ai\Tools\Request;
 
 /**
  * Adapter only: all logic, authorization and auditing live in AssistantTools::execute(),
  * which writes through the LogTransaction Action.
+ *
+ * Approvable: the model can only ASK to log a transaction. The run pauses until the user clicks
+ * Approve, and only then does handle() run, as that user, through LogTransaction.
  */
-final class LogTransactionTool implements Tool
+final class LogTransactionTool implements Approvable, Tool
 {
+    use InteractsWithApprovals;
+
     public function __construct(private AssistantTools $tools) {}
 
     public function name(): string

@@ -19,4 +19,7 @@ return [
     // Most model-and-tool round trips allowed for one user message.
     'max_tool_rounds' => 6,
 
+    // A transaction the assistant proposes must be approved within this many minutes.
+    'approval_ttl_minutes' => 10,
+
 ];

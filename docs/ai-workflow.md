@@ -114,3 +114,14 @@ Earlier phases are summarized in `DATABASE_DROPOFF.md`, `ACTIONS_DROPOFF.md` and
   - `no_real_model_is_ever_called` needed a guard for the **whole suite**, not one test. `tests/TestCase.php` now calls `Http::preventStrayRequests()` for every feature test (the SDK reaches providers through Laravel's HTTP client). All 357 existing tests still passed with it on, so nothing was quietly using the network. The named test proves an unfaked assistant call is stopped with `StrayRequestException`.
   - That test first took about 11 seconds: the SDK retries failed requests with a back-off. `Sleep::fake()` skips the waits (not the retries); the checklist file dropped from 20s to 6.6s.
   - The usual "remove the guard and watch the test fail" check was deliberately not run, because it would send a real request to Google.
+
+### Task 11: Human approval for agent writes
+
+- **Asked:** Claude Code to make `log_transaction` wait for an Approve click, using the SDK's tool-approval flow.
+- **Reviewed:** the SDK source before building (Approvable tools, paused turns, `pendingApprovalsFor()`, resume validation), and every refusal path: Viewer, a user demoted after the request, another user, approving twice, expiry, unknown id.
+- **Changed or rejected:**
+  - **The SDK fake skips approved tools.** `ResumesToolApprovals` deliberately does not run approved tools when an agent is faked, so the first "approve writes one row" test failed even though the code was right. Found by printing the stored turn instead of guessing. The decision tests now drop the fake and use the SDK's **real** resume path: the SDK runs our tool (through `AssistantTools` and `LogTransaction`) and only then calls the model, which the suite-wide network guard blocks. The write is real; no request leaves the machine.
+  - **The SDK has no expiry**, so `AssistantConversations::pendingApproval()` refuses a request whose paused turn is older than `agent.approval_ttl_minutes` (10).
+  - "Still an Editor at approval time" is checked twice: the endpoint authorizes `write`, and `LogTransaction` checks again when the approved tool runs.
+  - The SSE code moved into one `AssistantStream` class so chat and approvals stream the same format; the chat endpoint's 15 tests passed unchanged after the refactor.
+  - The model's instructions now say a logged transaction needs approval, so it does not claim "done" while the card is still waiting.

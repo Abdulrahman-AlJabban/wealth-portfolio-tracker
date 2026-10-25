@@ -7,12 +7,26 @@ type ChatMessage = {
     tools: string[];
 };
 
-/** The events AgentController streams. Anything else in the stream is ignored. */
+/** A transaction the assistant proposed and is waiting for the user to approve or reject. */
+type PendingApproval = {
+    id: string;
+    arguments: Record<string, string>;
+};
+
+/** The events the agent endpoints stream. Anything else in the stream is ignored. */
 type StreamEvent =
     | { type: 'conversation'; id: string }
     | { type: 'text'; text: string }
     | { type: 'tool'; name: string }
+    | { type: 'approval'; id: string; arguments: Record<string, string> }
     | { type: 'error'; message: string };
+
+/** Keeps only string values, so nothing unexpected from the model reaches the approval card. */
+function stringRecord(value: unknown): Record<string, string> | null {
+    if (typeof value !== 'object' || value === null) return null;
+
+    return Object.fromEntries(Object.entries(value).filter((entry): entry is [string, string] => typeof entry[1] === 'string'));
+}
 
 /** Turns one SSE payload into a known event, or null. JSON.parse gives `unknown`, so check every field. */
 function parseEvent(payload: string): StreamEvent | null {
@@ -35,6 +49,11 @@ function parseEvent(payload: string): StreamEvent | null {
     if (event.type === 'tool' && typeof event.name === 'string') return { type: 'tool', name: event.name };
     if (event.type === 'error' && typeof event.message === 'string') return { type: 'error', message: event.message };
 
+    if (event.type === 'approval' && typeof event.id === 'string') {
+        const args = stringRecord(event.arguments);
+        if (args !== null) return { type: 'approval', id: event.id, arguments: args };
+    }
+
     return null;
 }
 
@@ -45,8 +64,21 @@ function xsrfToken(): string {
     return cookie ? decodeURIComponent(cookie.slice('XSRF-TOKEN='.length)) : '';
 }
 
+/** The first validation message in a JSON 422 body, if there is one. */
+async function firstValidationError(response: Response): Promise<string | null> {
+    try {
+        const body: unknown = await response.json();
+        const errors = typeof body === 'object' && body !== null && 'errors' in body ? (body as { errors: unknown }).errors : null;
+        const first = typeof errors === 'object' && errors !== null ? Object.values(errors)[0] : null;
+
+        return Array.isArray(first) && typeof first[0] === 'string' ? first[0] : null;
+    } catch {
+        return null;
+    }
+}
+
 const STATUS_MESSAGES: Record<number, string> = {
-    403: 'You do not have access to this portfolio.',
+    403: 'You do not have access to do that in this portfolio.',
     404: 'That conversation could not be found. Start a new conversation.',
     429: 'Too many requests, wait a moment.',
     503: 'The assistant is not configured.',
@@ -61,10 +93,12 @@ const TOOL_LABELS: Record<string, string> = {
 
 export default function AgentPanel({
     portfolioId,
+    portfolioName,
     configured,
     canWrite,
 }: {
     portfolioId: number;
+    portfolioName: string;
     configured: boolean;
     canWrite: boolean;
 }) {
@@ -73,6 +107,7 @@ export default function AgentPanel({
     const [streaming, setStreaming] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [available, setAvailable] = useState(configured);
+    const [pending, setPending] = useState<PendingApproval | null>(null);
     const conversationId = useRef<string | null>(null);
     const abort = useRef<AbortController | null>(null);
     const list = useRef<HTMLDivElement>(null);
@@ -87,7 +122,7 @@ export default function AgentPanel({
         if (stickToBottom.current && list.current) {
             list.current.scrollTop = list.current.scrollHeight;
         }
-    }, [messages]);
+    }, [messages, pending]);
 
     function onScroll() {
         const element = list.current;
@@ -103,49 +138,37 @@ export default function AgentPanel({
     }
 
     function handleEvent(event: StreamEvent) {
-        if (event.type === 'conversation') {
-            conversationId.current = event.id;
-        } else if (event.type === 'text') {
-            updateReply((reply) => ({ ...reply, content: reply.content + event.text }));
-        } else if (event.type === 'tool') {
-            updateReply((reply) => ({ ...reply, tools: [...reply.tools, event.name] }));
-        } else {
-            setError(event.message);
-        }
+        if (event.type === 'conversation') conversationId.current = event.id;
+        else if (event.type === 'text') updateReply((reply) => ({ ...reply, content: reply.content + event.text }));
+        else if (event.type === 'tool') updateReply((reply) => ({ ...reply, tools: [...reply.tools, event.name] }));
+        else if (event.type === 'approval') setPending({ id: event.id, arguments: event.arguments });
+        else setError(event.message);
     }
 
-    async function send(text: string) {
-        const message = text.trim();
-
-        if (message === '' || streaming || !available) {
-            return;
-        }
-
-        setMessages((current) => [...current, { role: 'user', content: message, tools: [] }, { role: 'assistant', content: '', tools: [] }]);
-        setInput('');
+    /**
+     * POSTs to one of the agent endpoints and reads its event stream into the last assistant message.
+     * Shared by chat messages and approval decisions, which stream in exactly the same format.
+     */
+    async function streamFrom(url: string, body: Record<string, string | null>) {
         setError(null);
         setStreaming(true);
         stickToBottom.current = true;
         abort.current = new AbortController();
 
         try {
-            const response = await fetch(route('agent', portfolioId), {
+            const response = await fetch(url, {
                 method: 'POST',
                 credentials: 'same-origin',
                 signal: abort.current.signal,
-                headers: {
-                    'Content-Type': 'application/json',
-                    Accept: 'text/event-stream',
-                    'X-XSRF-TOKEN': xsrfToken(),
-                },
-                // Only the message and the server-issued id: the server keeps the history.
-                body: JSON.stringify({ message, conversation_id: conversationId.current }),
+                headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream', 'X-XSRF-TOKEN': xsrfToken() },
+                body: JSON.stringify(body),
             });
 
             if (!response.ok || response.body === null) {
                 if (response.status === 503) setAvailable(false);
                 if (response.status === 404) conversationId.current = null;
-                setError(STATUS_MESSAGES[response.status] ?? 'Something went wrong. Please try again.');
+                const validation = response.status === 422 ? await firstValidationError(response) : null;
+                setError(validation ?? STATUS_MESSAGES[response.status] ?? 'Something went wrong. Please try again.');
                 setMessages((current) => current.slice(0, -1));
                 return;
             }
@@ -177,24 +200,47 @@ export default function AgentPanel({
                 setError('Could not reach the assistant. Check your connection and try again.');
             }
         } finally {
-            // Always leave the loading state, whatever happened, and refresh the numbers in case a
-            // transaction was logged. Only props that exist on this page.
+            // Always leave the loading state, and refresh the numbers in case a transaction was logged.
             setStreaming(false);
             abort.current = null;
             router.reload({ only: ['summary', 'transactions'] });
         }
     }
 
+    function send(text: string) {
+        const message = text.trim();
+
+        if (message === '' || streaming || !available || pending !== null) return;
+
+        setMessages((current) => [...current, { role: 'user', content: message, tools: [] }, { role: 'assistant', content: '', tools: [] }]);
+        setInput('');
+        // Only the message and the server-issued id: the server keeps the history.
+        void streamFrom(route('agent', portfolioId), { message, conversation_id: conversationId.current });
+    }
+
+    function decide(decision: 'approve' | 'reject') {
+        if (pending === null || conversationId.current === null || streaming) return;
+
+        const toolCallId = pending.id;
+        setPending(null);
+        setMessages((current) => [...current, { role: 'assistant', content: '', tools: [] }]);
+        void streamFrom(route('agent.approvals', portfolioId), {
+            conversation_id: conversationId.current,
+            tool_call_id: toolCallId,
+            decision,
+        });
+    }
+
     function submit(event: FormEvent) {
         event.preventDefault();
-        void send(input);
+        send(input);
     }
 
     function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
         // Enter sends; Shift+Enter makes a new line.
         if (event.key === 'Enter' && !event.shiftKey) {
             event.preventDefault();
-            void send(input);
+            send(input);
         }
     }
 
@@ -202,6 +248,7 @@ export default function AgentPanel({
         abort.current?.abort();
         conversationId.current = null;
         setMessages([]);
+        setPending(null);
         setError(null);
     }
 
@@ -232,7 +279,7 @@ export default function AgentPanel({
                                 <button
                                     key={starter}
                                     type="button"
-                                    onClick={() => void send(starter)}
+                                    onClick={() => send(starter)}
                                     className="rounded-full border border-gray-200 px-3 py-1 text-xs text-gray-700 hover:border-gray-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                                 >
                                     {starter}
@@ -254,15 +301,60 @@ export default function AgentPanel({
                             </div>
                         )}
                         {/* Plain text, never HTML: nothing from the model or a tool result can inject markup. */}
-                        <p
-                            className={`inline-block max-w-full whitespace-pre-wrap rounded-lg px-3 py-2 text-left ${
-                                message.role === 'user' ? 'bg-gray-800 text-white' : 'bg-gray-50 text-gray-900'
-                            }`}
-                        >
-                            {message.content === '' && message.role === 'assistant' && streaming ? 'Thinking…' : message.content}
-                        </p>
+                        {(message.content !== '' || message.role === 'user' || streaming) && (
+                            <p
+                                className={`inline-block max-w-full whitespace-pre-wrap rounded-lg px-3 py-2 text-left ${
+                                    message.role === 'user' ? 'bg-gray-800 text-white' : 'bg-gray-50 text-gray-900'
+                                }`}
+                            >
+                                {message.content === '' && message.role === 'assistant' ? 'Thinking…' : message.content}
+                            </p>
+                        )}
                     </div>
                 ))}
+
+                {pending !== null && (
+                    <div role="group" aria-labelledby="approval-heading" className="rounded-lg border border-indigo-200 bg-indigo-50 p-3">
+                        <p id="approval-heading" className="text-xs font-medium text-indigo-900">
+                            The assistant wants to log this transaction. Nothing is saved until you approve.
+                        </p>
+                        {/* Exactly what will happen, from the arguments the model sent. */}
+                        <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs tabular-nums text-gray-800">
+                            <dt className="text-gray-500">Portfolio</dt>
+                            <dd>{portfolioName}</dd>
+                            <dt className="text-gray-500">Asset</dt>
+                            <dd>{pending.arguments.asset_symbol ?? '?'}</dd>
+                            <dt className="text-gray-500">Type</dt>
+                            <dd className="capitalize">{pending.arguments.type ?? '?'}</dd>
+                            <dt className="text-gray-500">Quantity</dt>
+                            <dd>{pending.arguments.quantity ?? '?'}</dd>
+                            <dt className="text-gray-500">Unit price</dt>
+                            <dd>{pending.arguments.price ?? '?'}</dd>
+                            {pending.arguments.note !== undefined && (
+                                <>
+                                    <dt className="text-gray-500">Note</dt>
+                                    <dd className="break-words">{pending.arguments.note}</dd>
+                                </>
+                            )}
+                        </dl>
+                        <div className="mt-3 flex gap-2">
+                            <button
+                                type="button"
+                                onClick={() => decide('approve')}
+                                className="rounded-md bg-gray-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                            >
+                                Approve
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => decide('reject')}
+                                className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                            >
+                                Reject
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {error !== null && (
@@ -280,10 +372,10 @@ export default function AgentPanel({
                     value={input}
                     onChange={(event) => setInput(event.target.value)}
                     onKeyDown={onKeyDown}
-                    disabled={streaming || !available}
+                    disabled={streaming || !available || pending !== null}
                     rows={2}
                     maxLength={4000}
-                    placeholder={available ? 'Ask a question…' : 'Not available'}
+                    placeholder={!available ? 'Not available' : pending !== null ? 'Approve or reject the transaction first' : 'Ask a question…'}
                     className="block w-full resize-none rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 disabled:bg-gray-50"
                 />
                 <div className="mt-2 flex items-center justify-between gap-2">
@@ -299,7 +391,7 @@ export default function AgentPanel({
                     ) : (
                         <button
                             type="submit"
-                            disabled={!available || input.trim() === ''}
+                            disabled={!available || pending !== null || input.trim() === ''}
                             className="rounded-md bg-gray-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:opacity-40"
                         >
                             Send

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AgentApprovalController;
 use App\Http\Controllers\AgentController;
 use App\Http\Controllers\AssetController;
 use App\Http\Controllers\MemberController;
@@ -33,6 +34,7 @@ Route::middleware('auth')->group(function () {
         Route::patch('members/{member}', [MemberController::class, 'update'])->name('members.update');
         Route::delete('members/{member}', [MemberController::class, 'destroy'])->name('members.destroy');
         Route::post('agent', AgentController::class)->middleware('throttle:20,1')->name('agent');
+        Route::post('agent/approvals', AgentApprovalController::class)->middleware('throttle:20,1')->name('agent.approvals');
     });
 });
 

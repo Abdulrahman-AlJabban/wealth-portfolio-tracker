@@ -7,17 +7,14 @@ namespace App\Http\Controllers;
 use App\Agent\AgentContext;
 use App\Agent\AssistantConversations;
 use App\Agent\AssistantStatus;
+use App\Agent\AssistantStream;
 use App\Models\Portfolio;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
-use Laravel\Ai\Streaming\Events\Error as StreamError;
-use Laravel\Ai\Streaming\Events\TextDelta;
-use Laravel\Ai\Streaming\Events\ToolCall;
 use Symfony\Component\HttpFoundation\StreamedResponse;
-use Throwable;
 
 /**
  * POST portfolios/{portfolio}/agent: streams the assistant's answer as server-sent events.
@@ -27,8 +24,6 @@ use Throwable;
  */
 class AgentController extends Controller
 {
-    private const UNAVAILABLE = 'The assistant is unavailable right now.';
-
     public function __invoke(Request $request, Portfolio $portfolio, AssistantConversations $conversations): StreamedResponse|JsonResponse
     {
         Gate::authorize('view', $portfolio);
@@ -57,48 +52,6 @@ class AgentController extends Controller
         // Throws ModelNotFoundException (404) for another user's or another portfolio's conversation.
         $assistant = $conversations->open($context, $validator->validated()['conversation_id'] ?? null, $message);
 
-        return response()->stream(function () use ($assistant, $message): void {
-            $this->send(['type' => 'conversation', 'id' => $assistant->currentConversation()]);
-
-            try {
-                foreach ($assistant->stream($message) as $event) {
-                    match (true) {
-                        $event instanceof TextDelta => $this->send(['type' => 'text', 'text' => $event->delta]),
-                        $event instanceof ToolCall => $this->send(['type' => 'tool', 'name' => $event->toolCall->name]),
-                        // The provider's own error text is never sent to the browser.
-                        $event instanceof StreamError => $this->send(['type' => 'error', 'message' => self::UNAVAILABLE]),
-                        default => null,
-                    };
-                }
-            } catch (Throwable $e) {
-                report($e);
-                $this->send(['type' => 'error', 'message' => self::UNAVAILABLE]);
-            }
-
-            echo "data: [DONE]\n\n";
-            $this->flush();
-        }, 200, [
-            'Content-Type' => 'text/event-stream',
-            'Cache-Control' => 'no-cache',
-            'X-Accel-Buffering' => 'no',
-        ]);
-    }
-
-    /**
-     * @param  array<string, mixed>  $event
-     */
-    private function send(array $event): void
-    {
-        echo 'data: '.json_encode($event, JSON_INVALID_UTF8_SUBSTITUTE)."\n\n";
-        $this->flush();
-    }
-
-    private function flush(): void
-    {
-        if (ob_get_level() > 0) {
-            ob_flush();
-        }
-
-        flush();
+        return AssistantStream::response($assistant->currentConversation(), fn () => $assistant->stream($message));
     }
 }

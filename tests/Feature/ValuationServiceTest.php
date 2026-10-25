@@ -61,6 +61,68 @@ test('average cost removes the average price of what was sold', function () {
     ]);
 });
 
+test('a sale above the average cost is realized profit and is added to the total', function () {
+    [, $portfolio] = portfolioWithRole(Role::Owner);
+    $btc = globalAsset();
+    marketPrice($btc, '65000', '2026-10-24 12:00:00');
+    valuationRow($portfolio, $btc, TransactionType::Buy, '0.5', '60000', '2026-10-01 10:00:00');
+    valuationRow($portfolio, $btc, TransactionType::Buy, '1', '65000', '2026-10-02 10:00:00');
+    valuationRow($portfolio, $btc, TransactionType::Sell, '1.1', '66000', '2026-10-03 10:00:00');
+
+    $summary = app(ValuationService::class)->summary($portfolio);
+
+    // Average cost 95000 / 1.5 = 63333.33333333. Realized: 1.1 × (66000 − 63333.33333333).
+    // Unrealized: 0.4 × 65000 − the 25333.33333334 cost left. Total is 3600 to within the 8th decimal.
+    expect($summary['holdings'][0]['quantity'])->toBe('0.40000000')
+        ->and($summary['realized_pnl'])->toBe('2933.33333333')
+        ->and($summary['unrealized_pnl'])->toBe('666.66666666')
+        ->and($summary['total_pnl'])->toBe('3599.99999999');
+});
+
+test('realized profit stays in the total after the asset is fully sold', function () {
+    [, $portfolio] = portfolioWithRole(Role::Owner);
+    $btc = globalAsset();
+    valuationRow($portfolio, $btc, TransactionType::Buy, '1', '100', '2026-10-01 10:00:00');
+    valuationRow($portfolio, $btc, TransactionType::Sell, '1', '120', '2026-10-02 10:00:00');
+
+    $summary = app(ValuationService::class)->summary($portfolio);
+
+    expect($summary['holdings'])->toBe([])
+        ->and($summary['realized_pnl'])->toBe('20.00000000')
+        ->and($summary['total_pnl'])->toBe('20.00000000');
+});
+
+test('a sale below the average cost is a realized loss', function () {
+    [, $portfolio] = portfolioWithRole(Role::Owner);
+    $btc = globalAsset();
+    valuationRow($portfolio, $btc, TransactionType::Buy, '2', '100', '2026-10-01 10:00:00');
+    valuationRow($portfolio, $btc, TransactionType::Sell, '1', '70', '2026-10-02 10:00:00');
+
+    expect(app(ValuationService::class)->summary($portfolio)['realized_pnl'])->toBe('-30.00000000');
+});
+
+test('a reversed buy and its reversal are left out, as if the trade never happened', function () {
+    [, $portfolio] = portfolioWithRole(Role::Owner);
+    $btc = globalAsset();
+    marketPrice($btc, '65000', '2026-10-24 12:00:00');
+    valuationRow($portfolio, $btc, TransactionType::Buy, '0.5', '60000', '2026-10-01 10:00:00');
+    $mistake = Transaction::create([
+        'portfolio_id' => $portfolio->id, 'asset_id' => $btc->id, 'type' => TransactionType::Buy, 'quantity' => '1', 'price' => '65000',
+        'occurred_at' => '2026-10-02 10:00:00', 'created_by' => $portfolio->created_by, 'source' => 'user',
+    ]);
+    Transaction::create([
+        'portfolio_id' => $portfolio->id, 'asset_id' => $btc->id, 'type' => TransactionType::Sell, 'quantity' => '1', 'price' => '65000',
+        'occurred_at' => '2026-10-03 10:00:00', 'created_by' => $portfolio->created_by, 'source' => 'user', 'reverses_id' => $mistake->id,
+    ]);
+
+    $summary = app(ValuationService::class)->summary($portfolio);
+
+    // Treated as an ordinary sale, the reversal would leave cost 31666.67 and realized profit 1666.67.
+    expect($summary['holdings'][0]['cost'])->toBe('30000.00000000')
+        ->and($summary['realized_pnl'])->toBe('0.00000000')
+        ->and($summary['total_pnl'])->toBe('2500.00000000');
+});
+
 test('the price comes from the latest snapshot, not the oldest', function () {
     [, $portfolio] = portfolioWithRole(Role::Owner);
     $btc = globalAsset();
@@ -135,6 +197,8 @@ test('an empty portfolio returns no holdings and zero totals', function () {
         'holdings' => [],
         'total_value' => '0.00000000',
         'total_cost' => '0.00000000',
+        'unrealized_pnl' => '0.00000000',
+        'realized_pnl' => '0.00000000',
         'total_pnl' => '0.00000000',
     ]);
 });

@@ -12,8 +12,12 @@ use App\Models\Transaction;
  * The one read model for holdings, cost basis and profit. The dashboard and the agent both use it,
  * so they can never disagree about a number.
  *
- * Known simplifications: average-cost accounting, reversals are treated as ordinary opposite rows,
- * and every amount is assumed to be in the portfolio's base currency.
+ * Profit is split into unrealized (holdings still held, at the latest price) and realized (each sale
+ * or withdrawal's price minus the average cost of what left). A reversal and the row it reverses are
+ * left out together, as if the mistaken trade never happened.
+ *
+ * Known simplifications: average-cost accounting, and every amount is assumed to be in the
+ * portfolio's base currency.
  */
 class ValuationService
 {
@@ -22,17 +26,25 @@ class ValuationService
      *     holdings: list<array{asset_id: int, symbol: ?string, name: string, type: string, quantity: string, price: string, price_as_of: ?string, value: string, cost: string, pnl: string}>,
      *     total_value: string,
      *     total_cost: string,
+     *     unrealized_pnl: string,
+     *     realized_pnl: string,
      *     total_pnl: string,
      * }
      */
     public function summary(Portfolio $portfolio): array
     {
         // Three queries in total (transactions, assets, latest snapshots), however many assets are held.
-        $transactionsByAsset = Transaction::query()
+        $transactions = Transaction::query()
             ->where('portfolio_id', $portfolio->id)
             ->orderBy('occurred_at')
             ->orderBy('id')
-            ->get(['asset_id', 'type', 'quantity', 'price'])
+            ->get(['id', 'asset_id', 'type', 'quantity', 'price', 'reverses_id']);
+
+        // Without this, reversing one of several buys at different prices would leave a wrong cost
+        // basis and a made-up realized profit, because the reversal is a sale at that buy's price.
+        $reversedIds = $transactions->pluck('reverses_id')->filter()->flip();
+        $transactionsByAsset = $transactions
+            ->reject(fn (Transaction $transaction) => $transaction->reverses_id !== null || $reversedIds->has($transaction->id))
             ->groupBy('asset_id');
 
         $assets = Asset::query()
@@ -44,18 +56,22 @@ class ValuationService
         $holdings = [];
         $totalValue = '0';
         $totalCost = '0';
+        $realizedPnl = '0';
 
         foreach ($transactionsByAsset as $assetId => $transactions) {
             $quantity = '0';
             $cost = '0';
 
             // Average cost: inflows add quantity × price, outflows remove the average cost of what left.
+            // The difference between an outflow's price and that average cost is realized profit, which
+            // stays in the total even after the asset is fully sold.
             foreach ($transactions as $transaction) {
                 if (! $transaction->type->isOutflow()) {
                     $cost = bcadd($cost, bcmul($transaction->quantity, $transaction->price, 8), 8);
                     $quantity = bcadd($quantity, $transaction->quantity, 8);
                 } elseif (bccomp($quantity, '0', 8) > 0) {
                     $averageCost = bcdiv($cost, $quantity, 8);
+                    $realizedPnl = bcadd($realizedPnl, bcmul($transaction->quantity, bcsub($transaction->price, $averageCost, 8), 8), 8);
                     $cost = bcsub($cost, bcmul($averageCost, $transaction->quantity, 8), 8);
                     $quantity = bcsub($quantity, $transaction->quantity, 8);
                 }
@@ -87,12 +103,16 @@ class ValuationService
             $totalCost = bcadd($totalCost, $cost, 8);
         }
 
+        $unrealizedPnl = bcsub($totalValue, $totalCost, 8);
+
         return [
             'holdings' => $holdings,
             'total_value' => bcadd($totalValue, '0', 8),
             'total_cost' => bcadd($totalCost, '0', 8),
-            // Computed here so the UI never has to subtract money in JavaScript.
-            'total_pnl' => bcsub($totalValue, $totalCost, 8),
+            // Computed here so the UI never has to add or subtract money in JavaScript.
+            'unrealized_pnl' => $unrealizedPnl,
+            'realized_pnl' => bcadd($realizedPnl, '0', 8),
+            'total_pnl' => bcadd($unrealizedPnl, $realizedPnl, 8),
         ];
     }
 

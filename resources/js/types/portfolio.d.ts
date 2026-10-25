@@ -35,6 +35,11 @@ export type Summary = {
     holdings: Holding[];
     total_value: string;
     total_cost: string;
+    /** Profit on holdings still held, at the latest price. */
+    unrealized_pnl: string;
+    /** Profit already made on sales and withdrawals. */
+    realized_pnl: string;
+    /** unrealized_pnl + realized_pnl */
     total_pnl: string;
 };
 

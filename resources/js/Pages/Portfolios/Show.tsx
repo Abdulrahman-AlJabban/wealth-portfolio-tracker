@@ -6,7 +6,7 @@ import RoleBadge from '@/Components/RoleBadge';
 import TransactionForm from '@/Components/TransactionForm';
 import TransactionList from '@/Components/TransactionList';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { formatAmount } from '@/lib/format';
+import { formatAmount, formatSigned } from '@/lib/format';
 import { ShowProps } from '@/types/portfolio';
 import { Head, usePoll } from '@inertiajs/react';
 import { KeyboardEvent, useState } from 'react';
@@ -92,6 +92,9 @@ export default function Show({ portfolio, role, abilities, assistant, summary, t
                             <dt className="text-xs uppercase tracking-wide text-gray-500">Profit</dt>
                             <dd className="mt-1 text-base font-medium sm:text-lg">
                                 <ProfitText value={summary.total_pnl} />
+                            </dd>
+                            <dd className="mt-0.5 text-xs text-gray-500">
+                                {formatSigned(summary.unrealized_pnl)} held · {formatSigned(summary.realized_pnl)} realized
                             </dd>
                         </div>
                     </dl>

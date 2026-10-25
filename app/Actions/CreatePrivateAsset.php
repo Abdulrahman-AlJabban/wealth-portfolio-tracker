@@ -34,15 +34,28 @@ final class CreatePrivateAsset
 
         $this->validate($name, $type);
 
-        return DB::transaction(fn () => Asset::create([
-            'portfolio_id' => $portfolio->id,
-            'type' => $type,
-            'symbol' => null,
-            'external_id' => null,
-            'name' => $name,
-            'currency' => $portfolio->base_currency,
-            'price_source' => PriceSource::Manual,
-        ]));
+        return DB::transaction(function () use ($portfolio, $name, $type) {
+            // Serializes asset creation on this portfolio, so two requests with the same name
+            // cannot both pass the check below and the second fail on the unique index.
+            Portfolio::query()->whereKey($portfolio->id)->lockForUpdate()->firstOrFail();
+
+            // Uses the column's collation, so the comparison is case-insensitive like the index.
+            if (Asset::query()->where('portfolio_id', $portfolio->id)->where('name', $name)->exists()) {
+                throw ValidationException::withMessages([
+                    'name' => 'This portfolio already has an asset with that name.',
+                ]);
+            }
+
+            return Asset::create([
+                'portfolio_id' => $portfolio->id,
+                'type' => $type,
+                'symbol' => null,
+                'external_id' => null,
+                'name' => $name,
+                'currency' => $portfolio->base_currency,
+                'price_source' => PriceSource::Manual,
+            ]);
+        });
     }
 
     /**

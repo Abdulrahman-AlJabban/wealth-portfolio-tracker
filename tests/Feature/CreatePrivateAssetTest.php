@@ -6,9 +6,11 @@ use App\Actions\CreatePrivateAsset;
 use App\Enums\AssetType;
 use App\Enums\PriceSource;
 use App\Enums\Role;
+use App\Models\Asset;
 use App\Models\Portfolio;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\QueryException;
 use Illuminate\Validation\ValidationException;
 
 test('editors and owners can add a private asset', function (Role $role, AssetType $type) {
@@ -64,6 +66,45 @@ test('market asset types are rejected', function (AssetType $type) {
 
     $this->assertDatabaseCount('assets', 0);
 })->with([AssetType::Stock, AssetType::Crypto]);
+
+test('a duplicate name in the same portfolio is rejected, ignoring case', function (string $duplicate) {
+    [$owner, $portfolio] = portfolioWithRole(Role::Owner);
+    $createAsset = app(CreatePrivateAsset::class);
+    $createAsset->execute($owner, $portfolio, 'Rental flat', AssetType::RealEstate);
+
+    expect(fn () => $createAsset->execute($owner, $portfolio, $duplicate, AssetType::Cash))
+        ->toThrow(ValidationException::class, 'This portfolio already has an asset with that name.');
+
+    $this->assertDatabaseCount('assets', 1);
+})->with(['Rental flat', 'rental FLAT', '  Rental flat  ']);
+
+test('the same name is allowed in another portfolio', function () {
+    [$owner, $portfolio] = portfolioWithRole(Role::Owner);
+    [$otherOwner, $otherPortfolio] = portfolioWithRole(Role::Owner);
+    $createAsset = app(CreatePrivateAsset::class);
+    $createAsset->execute($owner, $portfolio, 'Rental flat', AssetType::RealEstate);
+
+    $createAsset->execute($otherOwner, $otherPortfolio, 'Rental flat', AssetType::RealEstate);
+
+    $this->assertDatabaseCount('assets', 2);
+});
+
+test('a private name may match a global asset\'s name', function () {
+    [$owner, $portfolio] = portfolioWithRole(Role::Owner);
+    globalAsset('BTC');
+
+    $asset = app(CreatePrivateAsset::class)->execute($owner, $portfolio, 'BTC', AssetType::Cash);
+
+    expect($asset->portfolio_id)->toBe($portfolio->id);
+});
+
+test('the database itself refuses a duplicate private name', function () {
+    [, $portfolio] = portfolioWithRole(Role::Owner);
+    $row = ['portfolio_id' => $portfolio->id, 'type' => 'cash', 'name' => 'Savings', 'currency' => 'USD', 'price_source' => 'manual'];
+    Asset::create($row);
+
+    expect(fn () => Asset::create($row))->toThrow(QueryException::class);
+});
 
 test('invalid names are rejected', function (string $name) {
     [$owner, $portfolio] = portfolioWithRole(Role::Owner);

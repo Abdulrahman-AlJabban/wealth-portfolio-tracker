@@ -51,3 +51,12 @@ Earlier phases are summarized in `DATABASE_DROPOFF.md`, `ACTIONS_DROPOFF.md` and
 - **Asked:** Claude Code to add `AgentContext` and `ValuationService::allocation()`.
 - **Reviewed:** that allocation is built only from `summary()` (one source of numbers), that `role()` reads the role fresh so a demotion mid-run takes effect, and the rounding of weights.
 - **Changed or rejected:** the spec's `value * 100 / total` with `bcdiv` alone truncates, so the seeded weights would sum to 99.98, outside the allowed 0.01. Weights are rounded half-up instead (sum 99.99). Proven by temporarily switching back to truncation: 2 allocation tests failed. Rows are sorted largest first so the model reads the biggest positions first.
+
+### Task 4: AssistantTools with guarded execution, read tools
+
+- **Asked:** Claude Code to build `AssistantTools::execute()`, the one place every tool runs, with the three read tools.
+- **Reviewed:** that `execute()` can never throw (tested with a mocked service that throws), that the generic error never leaks internals (the mock's message contains a fake password and is not returned), and that each call writes exactly one `agent_runs` row.
+- **Changed or rejected:** two hardening fixes the spec did not mention:
+  - the tool name comes from the model and `agent_runs.tool` is 64 characters, so a long invented name would have made the audit insert fail; it is truncated;
+  - a failure to write the audit row is reported instead of thrown, so it cannot break the "never throws" rule.
+  - `limit` is accepted as a string or a number (models are inconsistent), but `2.5` or `1e3` are invalid rather than silently rounded.

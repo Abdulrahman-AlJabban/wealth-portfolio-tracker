@@ -1,0 +1,193 @@
+import InputError from '@/Components/InputError';
+import InputLabel from '@/Components/InputLabel';
+import PrimaryButton from '@/Components/PrimaryButton';
+import TextInput from '@/Components/TextInput';
+import { AssetOption, TransactionType } from '@/types/portfolio';
+import { useForm } from '@inertiajs/react';
+import { FormEvent } from 'react';
+
+const TYPES: { value: TransactionType; label: string }[] = [
+    { value: 'buy', label: 'Buy' },
+    { value: 'sell', label: 'Sell' },
+    { value: 'deposit', label: 'Deposit' },
+    { value: 'withdrawal', label: 'Withdrawal' },
+];
+
+const selectClass =
+    'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500';
+
+/** aria props that tie a field to its error message, if there is one. */
+function errorProps(field: string, message?: string) {
+    return {
+        'aria-invalid': message ? true : undefined,
+        'aria-describedby': message ? `${field}-error` : undefined,
+    };
+}
+
+export default function TransactionForm({
+    portfolioId,
+    assets,
+}: {
+    portfolioId: number;
+    assets: AssetOption[];
+}) {
+    const form = useForm({
+        asset_id: assets[0] ? String(assets[0].id) : '',
+        type: 'buy' as TransactionType,
+        quantity: '',
+        price: '',
+        fee: '',
+        occurred_at: '',
+        note: '',
+        // A new key per submit: a double click sends the same key twice, and the server logs once.
+        idempotency_key: crypto.randomUUID(),
+    });
+
+    function submit(event: FormEvent) {
+        event.preventDefault();
+
+        // datetime-local has no timezone. Send an ISO timestamp so the server does not read
+        // local time as UTC (which, east of UTC, would look like a date in the future).
+        form.transform((data) => ({
+            ...data,
+            occurred_at: data.occurred_at === '' ? '' : new Date(data.occurred_at).toISOString(),
+        }));
+
+        form.post(route('transactions.store', portfolioId), {
+            preserveScroll: true,
+            onSuccess: () => {
+                form.reset('quantity', 'price', 'fee', 'occurred_at', 'note');
+                form.setData('idempotency_key', crypto.randomUUID());
+            },
+        });
+    }
+
+    return (
+        <form
+            onSubmit={submit}
+            className="rounded-lg border border-gray-200 bg-white p-5"
+            aria-labelledby="log-transaction"
+        >
+            <h3 id="log-transaction" className="text-base font-semibold text-gray-900">
+                Log a transaction
+            </h3>
+
+            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="sm:col-span-2">
+                    <InputLabel htmlFor="asset_id" value="Asset" />
+                    <select
+                        id="asset_id"
+                        value={form.data.asset_id}
+                        onChange={(event) => form.setData('asset_id', event.target.value)}
+                        className={selectClass}
+                        {...errorProps('asset_id', form.errors.asset_id)}
+                    >
+                        {assets.map((asset) => (
+                            <option key={asset.id} value={asset.id}>
+                                {asset.symbol ? `${asset.symbol} · ${asset.name}` : asset.name}
+                                {asset.is_private ? ' (private)' : ''}
+                            </option>
+                        ))}
+                    </select>
+                    <InputError id="asset_id-error" message={form.errors.asset_id} className="mt-1" />
+                </div>
+
+                <div className="sm:col-span-2">
+                    <InputLabel htmlFor="type" value="Type" />
+                    <select
+                        id="type"
+                        value={form.data.type}
+                        onChange={(event) => form.setData('type', event.target.value as TransactionType)}
+                        className={selectClass}
+                        {...errorProps('type', form.errors.type)}
+                    >
+                        {TYPES.map((type) => (
+                            <option key={type.value} value={type.value}>
+                                {type.label}
+                            </option>
+                        ))}
+                    </select>
+                    <InputError id="type-error" message={form.errors.type} className="mt-1" />
+                </div>
+
+                <div>
+                    <InputLabel htmlFor="quantity" value="Quantity" />
+                    {/* type="text" + inputMode: number inputs allow "1e3" and go through a float. */}
+                    <TextInput
+                        id="quantity"
+                        inputMode="decimal"
+                        autoComplete="off"
+                        value={form.data.quantity}
+                        onChange={(event) => form.setData('quantity', event.target.value)}
+                        required
+                        className="mt-1 block w-full"
+                        {...errorProps('quantity', form.errors.quantity)}
+                    />
+                    <InputError id="quantity-error" message={form.errors.quantity} className="mt-1" />
+                </div>
+
+                <div>
+                    <InputLabel htmlFor="price" value="Unit price" />
+                    <TextInput
+                        id="price"
+                        inputMode="decimal"
+                        autoComplete="off"
+                        value={form.data.price}
+                        onChange={(event) => form.setData('price', event.target.value)}
+                        required
+                        className="mt-1 block w-full"
+                        {...errorProps('price', form.errors.price)}
+                    />
+                    <InputError id="price-error" message={form.errors.price} className="mt-1" />
+                </div>
+
+                <div>
+                    <InputLabel htmlFor="fee" value="Fee (optional)" />
+                    <TextInput
+                        id="fee"
+                        inputMode="decimal"
+                        autoComplete="off"
+                        value={form.data.fee}
+                        onChange={(event) => form.setData('fee', event.target.value)}
+                        className="mt-1 block w-full"
+                        {...errorProps('fee', form.errors.fee)}
+                    />
+                    <InputError id="fee-error" message={form.errors.fee} className="mt-1" />
+                </div>
+
+                <div>
+                    <InputLabel htmlFor="occurred_at" value="Date (optional)" />
+                    <TextInput
+                        id="occurred_at"
+                        type="datetime-local"
+                        value={form.data.occurred_at}
+                        onChange={(event) => form.setData('occurred_at', event.target.value)}
+                        className="mt-1 block w-full"
+                        {...errorProps('occurred_at', form.errors.occurred_at)}
+                    />
+                    <InputError id="occurred_at-error" message={form.errors.occurred_at} className="mt-1" />
+                </div>
+
+                <div className="sm:col-span-2 lg:col-span-4">
+                    <InputLabel htmlFor="note" value="Note (optional)" />
+                    <TextInput
+                        id="note"
+                        value={form.data.note}
+                        onChange={(event) => form.setData('note', event.target.value)}
+                        maxLength={500}
+                        className="mt-1 block w-full"
+                        {...errorProps('note', form.errors.note)}
+                    />
+                    <InputError id="note-error" message={form.errors.note} className="mt-1" />
+                </div>
+            </div>
+
+            <div className="mt-4 flex items-center gap-3">
+                <PrimaryButton type="submit" disabled={form.processing}>
+                    {form.processing ? 'Saving…' : 'Log transaction'}
+                </PrimaryButton>
+                <span className="text-xs text-gray-500">Leave the date empty to use the current time.</span>
+            </div>
+        </form>
+    );
+}

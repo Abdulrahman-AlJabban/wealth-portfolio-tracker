@@ -254,6 +254,31 @@ describe('validation', function () {
         $this->assertDatabaseCount('transactions', 1);
     });
 
+    test('the form\'s ISO timestamp is accepted and stored in UTC', function () {
+        $this->travelTo('2026-10-25 12:00:00');
+        $fixture = httpFixture();
+        [, $url, $data] = writeEndpoint('log transaction', $fixture);
+
+        // TransactionForm sends new Date(localValue).toISOString(), e.g. 14:00 in Damascus (UTC+3).
+        $this->actingAs($fixture['editor'])
+            ->post($url, [...$data, 'occurred_at' => '2026-10-25T11:00:00.000Z'])
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('transactions', ['created_by' => $fixture['editor']->id, 'occurred_at' => '2026-10-25 11:00:00']);
+    });
+
+    test('a refused reversal comes back under the quantity key', function () {
+        $fixture = httpFixture();
+        $portfolio = $fixture['portfolio'];
+        app(LogTransaction::class)->execute($fixture['owner'], $portfolio, new LogTransactionData($fixture['btc']->id, TransactionType::Sell, '2', '100'));
+
+        // TransactionList reads errors.transaction or errors.quantity from the reverse request.
+        $this->actingAs($fixture['owner'])
+            ->from(route('portfolios.show', $portfolio))
+            ->post(route('transactions.reverse', [$portfolio, $fixture['transaction']]))
+            ->assertSessionHasErrors(['quantity' => 'This would make the position negative at some point in time.']);
+    });
+
     test('an oversell shows the R4 message under the quantity field', function () {
         $fixture = httpFixture();
         [, $url, $data] = writeEndpoint('log transaction', $fixture);

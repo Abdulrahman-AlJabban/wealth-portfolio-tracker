@@ -1,5 +1,7 @@
 import HoldingsTable, { ProfitText } from '@/Components/HoldingsTable';
 import RoleBadge from '@/Components/RoleBadge';
+import TransactionForm from '@/Components/TransactionForm';
+import TransactionList from '@/Components/TransactionList';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { formatAmount } from '@/lib/format';
 import { ShowProps } from '@/types/portfolio';
@@ -20,7 +22,7 @@ function tabFromHash(): TabId {
     return TABS.find((tab) => tab.id === hash)?.id ?? 'holdings';
 }
 
-export default function Show({ portfolio, role, summary }: ShowProps) {
+export default function Show({ portfolio, role, abilities, summary, transactions, assets }: ShowProps) {
     const [tab, setTab] = useState<TabId>(tabFromHash);
 
     function selectTab(id: TabId) {
@@ -107,9 +109,18 @@ export default function Show({ portfolio, role, summary }: ShowProps) {
                                     currency={portfolio.base_currency}
                                 />
                             )}
-                            {/* Temporary until http_ui_tasks.md Task 10 */}
                             {tab === 'transactions' && (
-                                <p className="text-sm text-gray-600">Transactions will appear here.</p>
+                                <div className="space-y-6">
+                                    {/* Hidden for viewers as a convenience; the server refuses their writes anyway. */}
+                                    {abilities.write && (
+                                        <TransactionForm portfolioId={portfolio.id} assets={assets} />
+                                    )}
+                                    <TransactionList
+                                        portfolioId={portfolio.id}
+                                        transactions={transactions}
+                                        canWrite={abilities.write}
+                                    />
+                                </div>
                             )}
                             {/* Temporary until http_ui_tasks.md Task 12 */}
                             {tab === 'members' && (

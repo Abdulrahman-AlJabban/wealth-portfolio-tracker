@@ -18,3 +18,14 @@ Earlier phases are summarized in `DATABASE_DROPOFF.md`, `ACTIONS_DROPOFF.md` and
 - **Asked:** Claude Code to run the prerequisite checks and set up this log.
 - **Reviewed:** PHP 8.3.11 (SDK needs 8.3+), Laravel 13.38, `migrate:fresh --seed`, Pest (257 passing), `tsc`. `ValuationService::summary()` exists. `Portfolios/Show.tsx` exists, so the panel mounts on the real page.
 - **Changed or rejected:** nothing. Noted that `docs/HANDOFF.md`, cited by the task list for the design, does not exist; `BUILD_GUIDE.md` section 11 is used instead.
+
+### Task 1: Install the Laravel AI SDK and make one model call
+
+- **Asked:** Claude Code to install `laravel/ai`, configure one provider (Google AI Studio, Gemini), and report the installed API instead of guessing it.
+- **Reviewed:** the installed source (v1.3.0), not memory: the agent and tool contracts, `Promptable`, `TextGenerationOptions`, the streaming events, `RemembersConversations`, the approval classes and `FakeTextGateway`. A throwaway script ran a scripted tool call through the SDK's fake to confirm the tool loop and the stream event order.
+- **Changed or rejected:**
+  - The task list described the SDK as pre-1.0. The installed version is **1.3.0**; the installed API was used.
+  - The provider-wide `vendor:publish` also copied four `stubs/*.stub` files; deleted, they are not needed.
+  - Caught before it shipped: `env('GEMINI_MODEL')` returns `''` for an empty value, which would have sent an empty model name. Config uses `?: null`.
+  - Security finding: the SDK's `continue($conversationId)` does **not** check who owns the conversation (nothing calls `conversationBelongsTo()`). Task 7 must check ownership and portfolio itself.
+  - Live checks skipped: no `GEMINI_API_KEY` yet. The throwaway live-check script is ready to run once a key is added.

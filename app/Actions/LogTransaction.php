@@ -43,6 +43,10 @@ final class LogTransaction
         $this->validate($data);
 
         return DB::transaction(function () use ($user, $portfolio, $data, $source) {
+            // Serializes writers on this portfolio, so two sells cannot both pass the R4 check,
+            // and two requests with the same idempotency key cannot both miss the lookup below.
+            Portfolio::query()->whereKey($portfolio->id)->lockForUpdate()->firstOrFail();
+
             // Hashed with the portfolio id, so the same client key in two portfolios never collides.
             $idempotencyKey = $data->idempotencyKey === null
                 ? null
@@ -55,12 +59,11 @@ final class LogTransaction
                     ->first();
 
                 if ($existing !== null) {
+                    $this->assertSameRequest($existing, $data);
+
                     return $existing;
                 }
             }
-
-            // Serializes writers on this portfolio, so two sells cannot both pass the R4 check.
-            Portfolio::query()->whereKey($portfolio->id)->lockForUpdate()->firstOrFail();
 
             // R3: the same message whether the asset does not exist or belongs to another portfolio,
             // so a user cannot probe for other portfolios' private assets.
@@ -130,6 +133,28 @@ final class LogTransaction
 
         if ($errors !== []) {
             throw ValidationException::withMessages($errors);
+        }
+    }
+
+    /**
+     * A reused idempotency key must describe the same trade. Otherwise the caller would be told
+     * their new transaction was logged while they actually got back a different, older one.
+     * occurred_at is not compared because it defaults to "now", which differs on every retry.
+     *
+     * @throws ValidationException
+     */
+    private function assertSameRequest(Transaction $existing, LogTransactionData $data): void
+    {
+        $isSameRequest = $existing->asset_id === $data->assetId
+            && $existing->type === $data->type
+            && bccomp($existing->quantity, $data->quantity, 8) === 0
+            && bccomp($existing->price, $data->price, 8) === 0
+            && bccomp($existing->fee, $data->fee, 8) === 0;
+
+        if (! $isSameRequest) {
+            throw ValidationException::withMessages([
+                'idempotency_key' => 'This idempotency key was already used for a different transaction.',
+            ]);
         }
     }
 

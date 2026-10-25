@@ -29,3 +29,9 @@ Earlier phases are summarized in `DATABASE_DROPOFF.md`, `ACTIONS_DROPOFF.md` and
   - Caught before it shipped: `env('GEMINI_MODEL')` returns `''` for an empty value, which would have sent an empty model name. Config uses `?: null`.
   - Security finding: the SDK's `continue($conversationId)` does **not** check who owns the conversation (nothing calls `conversationBelongsTo()`). Task 7 must check ownership and portfolio itself.
   - Live checks skipped: no `GEMINI_API_KEY` yet. The throwaway live-check script is ready to run once a key is added.
+
+### Task 2: Assistant config and "not configured" state
+
+- **Asked:** Claude Code to add `config/agent.php` and `AssistantStatus::isConfigured()`.
+- **Reviewed:** that the check works for any provider in `config/ai.php` (all keep their credential under `key`), never reads the key out, and that tests set the key themselves so they do not depend on the real `.env`.
+- **Changed or rejected:** the check is "enabled and the configured provider's `key` is non-empty". Stated limitation: providers that authenticate without a key (Ollama, Bedrock with default AWS credentials) would show as not configured. Only Gemini is used here.

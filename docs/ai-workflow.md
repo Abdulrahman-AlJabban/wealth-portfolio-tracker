@@ -88,3 +88,11 @@ Earlier phases are summarized in `DATABASE_DROPOFF.md`, `ACTIONS_DROPOFF.md` and
   - The SDK makes an **extra model call to title every new conversation**. That would spend tokens for nothing the app shows, so `ai.conversations.generate_title` is off and the title is the first 50 characters of the message.
   - The conversation row and thread row are created **before** the model call (through the SDK's `ConversationStore`), so the endpoint can send the conversation id to the browser first.
   - Every rejection (unknown id, another user's, another portfolio's, SDK row with no thread) throws the same `ModelNotFoundException`, so the response never reveals whether an id exists.
+
+### Task 8: Streaming endpoint
+
+- **Asked:** Claude Code to add `POST portfolios/{portfolio}/agent`, streaming our own SSE events.
+- **Reviewed:** that every refusal (403, 503, 422, 404) happens before the stream starts. Proven by moving the Gate check inside the stream: a non-member then got 200 instead of 403, because the headers were already sent. Also that a provider failure sends only a generic error (a fake failure containing a fake secret never reaches the browser), and that forged `messages`, `role` and `user_id` fields are ignored.
+- **Changed or rejected:**
+  - Laravel's `$request->validate()` redirects (302) when the browser asks for `text/event-stream`, so the spec's 422 would not happen. The controller runs the validator itself and returns JSON 422.
+  - The spec's two-step build (whole answer first, then streaming) was collapsed: the SDK's stream works with its fake, so the endpoint streams from the start and the tests read the real event sequence. Real token-by-token streaming over `php artisan serve` can only be seen with the live provider, so it is deferred to the final live check.

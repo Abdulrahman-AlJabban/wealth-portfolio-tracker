@@ -52,11 +52,7 @@ test('controllers and agent code never write domain rows directly', function () 
 });
 
 test('controllers and agent code never delete records directly', function () {
-    // Breeze's account deletion ($user->delete()) is auth scaffolding, not a domain write,
-    // so it is the one allowed exception. Any other ->delete() must go through an Action.
-    $allowed = ['app/Http/Controllers/ProfileController.php'];
-
-    $offenders = array_values(array_diff(writePathOffenders('/->delete\(\)/'), $allowed));
+    $offenders = writePathOffenders('/->delete\(\)/');
 
     expect($offenders)->toBe([], 'Use DeletePortfolio, RemoveMember or another Action instead. Offending files: '.implode(', ', $offenders));
 });

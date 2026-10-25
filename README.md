@@ -1,92 +1,139 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Wealth Portfolio Tracker
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Shared portfolios of stocks, crypto, real estate and cash, with Owner / Editor / Viewer roles, an append-only transaction ledger, scheduled market prices and an AI assistant that can answer questions and propose transactions.
 
-## Configure the agent
+Built for the Talent Syria technical assessment. The scope, the design and the main decisions are in [PLAN.html](PLAN.html) (open it in a browser).
 
-The portfolio page has an AI assistant that answers questions about the portfolio and can propose transactions. It uses the [Laravel AI SDK](https://laravel.com/docs/ai) (`laravel/ai` 1.3).
+## Stack
 
-1. Get a Google AI Studio key at https://aistudio.google.com/apikey.
-2. In `.env`:
+- Laravel 13, PHP 8.3
+- Inertia v2, React, TypeScript, Tailwind
+- MySQL 8.4 (InnoDB)
+- Laravel AI SDK with Google Gemini
+- CoinGecko for market prices
+- Pest
 
-   ```dotenv
-   AGENT_ENABLED=true
-   AI_PROVIDER=gemini
-   GEMINI_API_KEY=your-key
-   GEMINI_MODEL=gemini-3.1-flash-lite   # optional; empty uses the SDK default (gemini-3.8-flash)
-   ```
+## Features
 
-3. `php artisan config:clear`, then run the app with more than one PHP worker, because the chat streams: `PHP_CLI_SERVER_WORKERS=4 php artisan serve`.
+- **Portfolios and roles.** Each portfolio has members with a role. Viewers can read, Editors can also log transactions and value assets, and Owners can also manage members and delete the portfolio.
+- **Ledger.** Buys, sells, deposits and withdrawals are never edited or deleted. Mistakes are corrected with a reversing row. Holdings, cost (average cost) and profit (realized on sales, unrealized on holdings) are calculated from the ledger.
+- **Assets.** Market assets (BTC, ETH, AAPL) are shared and priced by the sync. Private assets (real estate, cash) belong to one portfolio and are valued by hand.
+- **Market prices.** `market:sync` runs every 5 minutes, and the portfolio page refreshes its prices every 30 seconds.
+- **AI assistant.** It answers with live portfolio numbers, suggests rebalancing, and proposes transactions that the user must approve. It acts with the user's own permissions.
 
-**The model must support tool calling.** Every answer comes from tools (summary, allocation, transactions, log transaction); a model without tool calling cannot answer.
+Every write goes through an Action class in `app/Actions` that authorizes the user itself, so the web UI and the assistant are held to the same rules.
 
-Without a key the assistant shows "not configured" and the rest of the app works. To use another provider, set `AI_PROVIDER` to one of the providers in `config/ai.php` and its key variable (for example `ANTHROPIC_API_KEY`).
+## Requirements
 
-**What was actually tested:** Google AI Studio, model `gemini-3.1-flash-lite` (plain prompt and tool calling). `gemini-3.8-flash` was often overloaded (HTTP 503) during testing. The automated tests never call a real model; they use the SDK's fakes and block all network access.
+- PHP 8.3+ with `bcmath` and `pdo_mysql`
+- Composer
+- Node 20.19+ or 22.12+ (required by Vite 8)
+- MySQL 8: local, or Docker with the included `docker-compose.yml`
 
-See `docs/demo.md` for demo scripts.
-
-## Market prices
-
-Global assets (BTC, ETH, and AAPL through Apple xStock) get live prices from CoinGecko.
-
-1. Get a free Demo key at https://www.coingecko.com/en/api.
-2. In `.env`: `MARKET_DRIVER=coingecko` and `COINGECKO_API_KEY=your-key` (without them, `MARKET_DRIVER=fake` moves prices randomly for local development).
-3. Run `php artisan schedule:work` to sync every 5 minutes, or `php artisan market:sync` once.
-
-The portfolio page reloads its price data every 30 seconds, so a new price appears without a refresh.
-
-## About Laravel
-
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
-
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
-
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
-
-## Learning Laravel
-
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+## Setup
 
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+composer install
+npm install
+cp .env.example .env
+php artisan key:generate
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+Set the database in `.env` and create two databases: the app's, and `wealth_test` for the tests. The test database is set in `phpunit.xml` and uses the same host and credentials as the app.
 
-## Contributing
+**With Docker:**
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+```bash
+docker compose up -d
+docker compose exec mysql mysql -uroot -proot -e "CREATE DATABASE wealth_test"
+```
 
-## Code of Conduct
+```dotenv
+DB_DATABASE=wealth
+DB_USERNAME=root
+DB_PASSWORD=root
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+**With a local MySQL:** create `wealth_portfolio` and `wealth_test`, and set `DB_USERNAME` and `DB_PASSWORD` to your MySQL login.
 
-## Security Vulnerabilities
+Then migrate and load the demo data:
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+```bash
+php artisan migrate:fresh --seed
+```
 
-## License
+## Run
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Run each command in its own terminal:
+
+```bash
+PHP_CLI_SERVER_WORKERS=4 php artisan serve   # app at http://127.0.0.1:8000
+npm run dev                                  # front-end assets
+php artisan schedule:work                    # price sync every 5 minutes
+```
+
+The assistant streams its replies, which keeps one connection open, so the server needs more than one worker. PHP's built-in server ignores `PHP_CLI_SERVER_WORKERS` on Windows; there, use WSL, Docker or Laravel Herd if the page stalls while the assistant is answering.
+
+**Demo users** all have the password `password`:
+
+| User | Role in "Family wealth" |
+|---|---|
+| alice@example.com | Owner |
+| bob@example.com | Editor |
+| carol@example.com | Viewer |
+
+## Configuration
+
+**Assistant.** Without a key, the assistant shows "not configured" and the rest of the app works.
+
+```dotenv
+GEMINI_API_KEY=            # https://aistudio.google.com/apikey
+GEMINI_MODEL=gemini-3.1-flash-lite
+AI_FAILOVER=gemini-fallback          # optional: try a second model when the first is overloaded (503)
+GEMINI_FALLBACK_MODEL=gemini-2.5-flash
+```
+
+The model must support tool calling. To use another provider, set `AI_PROVIDER` to an entry in `config/ai.php` and set its key.
+
+**Market prices.** `fake` moves prices randomly and needs no key.
+
+```dotenv
+MARKET_DRIVER=coingecko    # or: fake
+COINGECKO_API_KEY=         # free Demo key: https://www.coingecko.com/en/api
+```
+
+To run one sync now, use `php artisan market:sync`.
+
+Run `php artisan config:clear` after changing `.env`.
+
+## Tests
+
+```bash
+php artisan test
+```
+
+The tests run on MySQL (`wealth_test`) and never call the network. The AI model and CoinGecko are faked.
+
+## Known limitations
+
+- **Ledger edits:** the append-only rule is enforced in the model and the Actions, not by database triggers, so a raw query could bypass it.
+- **AAPL price:** it comes from Apple xStock, a token on CoinGecko that tracks the share price, not from an exchange quote.
+- **Live updates:** values refresh by polling every 30 seconds. There is no push, presence or collaborative editing.
+- **Accounting:**
+  - one currency per portfolio;
+  - cost is average cost;
+  - no trading fees;
+  - cash is not debited automatically when buying.
+- **Assistant:** one provider has been tested (Gemini). Replies are plain text.
+
+## Docs
+
+- [PLAN.html](PLAN.html): scope, design and the main decisions
+- [docs/decisions.md](docs/decisions.md): every decision, with what was rejected and what it costs
+
+The task lists the AI coding agent worked through, one task at a time, in this order:
+
+1. [docs/database_tasks.md](docs/database_tasks.md): schema, enums, models and seeder
+2. [docs/actions_tasks.md](docs/actions_tasks.md): policy, Actions and the business rules
+3. [docs/http_ui_tasks.md](docs/http_ui_tasks.md): routes, controllers and the React pages
+4. [docs/ai_agent_tasks.md](docs/ai_agent_tasks.md): the AI assistant

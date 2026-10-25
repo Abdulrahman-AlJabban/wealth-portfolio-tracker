@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plan: Wealth Portfolio Tracker</title>
+<style>
+:root{--bg:#f6f6f4;--paper:#fff;--fg:#1f1f1d;--mut:#5f5e5a;--line:#e2e0d8;--card:#faf9f6;--acc:#1f6b52;--soft:#e3f0ea;--no:#8a8880}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121513;--paper:#181c1a;--fg:#e8e6df;--mut:#a9a79f;--line:#2f3533;--card:#1d2220;--acc:#6cc3a0;--soft:#1a3329;--no:#7d7b74}}
+:root[data-theme="dark"]{--bg:#121513;--paper:#181c1a;--fg:#e8e6df;--mut:#a9a79f;--line:#2f3533;--card:#1d2220;--acc:#6cc3a0;--soft:#1a3329;--no:#7d7b74}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:1rem}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.65 system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{display:grid;grid-template-columns:240px minmax(0,1fr);max-width:1180px;margin:0 auto;gap:0}
+nav{position:sticky;top:0;height:100vh;overflow:auto;padding:2rem 1rem 2rem 1.25rem;font-size:.9rem}
+nav b{display:block;margin-bottom:.6rem;font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;color:var(--mut)}
+nav a{display:block;padding:.25rem .5rem;margin:0 -.5rem;border-radius:6px;color:var(--mut);text-decoration:none}
+nav a:hover,nav a:focus-visible{color:var(--fg);background:var(--card);outline:none}
+main{background:var(--paper);border-inline:1px solid var(--line);padding:2.5rem 2.5rem 5rem;min-width:0}
+header{border-bottom:1px solid var(--line);padding-bottom:1.5rem;margin-bottom:.5rem}
+.eyebrow{font-size:.75rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--acc);margin:0 0 .4rem}
+h1{font-size:1.9rem;line-height:1.2;margin:0 0 .8rem;font-weight:650}
+header p{color:var(--mut);max-width:72ch;margin:.5rem 0}
+h2{font-size:1.35rem;margin:2.8rem 0 .8rem;padding-top:1.4rem;border-top:1px solid var(--line);font-weight:650}
+h3{font-size:1.02rem;margin:1.8rem 0 .5rem;font-weight:650}
+p,li{max-width:76ch}ul,ol{padding-left:1.4rem}li{margin:.2rem 0}li>ol,li>ul{margin:.3rem 0}li p{margin:.4rem 0}
+code{font:.85em ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--card);border:1px solid var(--line);border-radius:4px;padding:.05em .3em;overflow-wrap:anywhere}
+strong{font-weight:650}
+.table{overflow-x:auto;margin:1rem 0;border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;font-size:.88rem}
+th,td{padding:.55rem .75rem;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}
+tbody tr:last-child td{border-bottom:0}
+th{background:var(--card);font-size:.75rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--mut);white-space:nowrap}
+td:first-child{min-width:11rem}
+td.yes{color:var(--acc);font-weight:600}td.no{color:var(--no)}
+main a{color:var(--acc)}
+footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--line);font-size:.85rem;color:var(--mut)}
+@media(max-width:860px){.wrap{display:block}nav{position:static;height:auto;padding:1rem 16px;border-bottom:1px solid var(--line)}nav a{display:inline-block;margin:0 .5rem .25rem 0}main{padding:1.5rem 16px 3rem;border:0}td:first-child{min-width:8rem}}
+@media print{nav{display:none}.wrap{display:block}main{border:0;padding:0}h2{break-after:avoid}tr{break-inside:avoid}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav aria-label="Sections"><b>Contents</b>
+<a href="#1-scope">1. Scope</a>
+<a href="#2-design">2. Design</a>
+<a href="#3-the-ai-assistant">3. The AI assistant</a>
+<a href="#4-discussions-the-choices-that-weren-t-obvious">4. Discussions: the choices that weren't obvious</a>
+<a href="#5-type-safety-across-php-and-typescript">5. Type safety across PHP and TypeScript</a>
+<a href="#6-how-i-used-ai-tools">6. How I used AI tools</a>
+<a href="#7-known-limitations-and-next-steps">7. Known limitations and next steps</a>
+</nav>
+<main>
+<header>
+<p class="eyebrow">Talent Syria technical assessment · written plan</p>
+<h1>Wealth Portfolio Tracker</h1>
+<p>A household shares a portfolio of stocks, crypto, real estate and cash. Each member is an Owner, Editor or Viewer. Holdings and profit are calculated from a ledger that is never edited. An AI assistant answers questions and proposes transactions, and market prices update on a schedule.</p>
+<p><strong>Stack:</strong> Laravel 13 (PHP 8.3), Inertia with React and TypeScript, MySQL 8.4, Laravel AI SDK with Gemini, CoinGecko, Pest.</p>
+</header>
+<h2 id="1-scope">1. Scope</h2>
+<p>I ranked the brief's five areas by what the evaluation weighs most: access control that can't be bypassed, and the quality of the agent integration.</p>
+<div class="table"><table><thead><tr><th scope="col">Area</th><th scope="col">Decision</th></tr></thead><tbody><tr><td>Data and permission modeling</td><td><strong>In depth.</strong> The agent is only as safe as the model under it.</td></tr><tr><td>Embedded AI agent</td><td><strong>In depth.</strong> Streaming chat, four tools, human approval of writes, an audit log.</td></tr><tr><td>Async and external data</td><td><strong>Small.</strong> A scheduled price sync from CoinGecko every 5 minutes.</td></tr><tr><td>Real-time</td><td><strong>Partly.</strong> Values refresh every 30 seconds by polling.</td></tr><tr><td>UI/UX</td><td><strong>Throughout.</strong> Inline form errors, loading and empty states, readable 403/404 pages, keyboard access.</td></tr></tbody></table></div>
+<p><strong>Deferred on purpose:</strong></p>
+<ul><li>
+presence and collaborative notes;
+</li><li>
+multi-currency;
+</li><li>
+automatic cash movements on trades;
+</li><li>
+trading fees;
+</li><li>
+database row-level security and triggers.
+</li></ul>
+<p>Each one costs real time and isn't graded, and each is listed in section 7.</p>
+<p>The work was planned in tiers (model and dashboard → agent → prices → tests and polish → live updates), each ending in something that runs. If time had run out, it would have stopped at a clean line.</p>
+<h2 id="2-design">2. Design</h2>
+<p><strong>The core idea:</strong> every write goes through an Action class, and the Action checks permissions itself, on its first line, with <code>Gate::forUser($user)-&gt;authorize(...)</code>. The web form, the AI agent and the tests are three ways in to the same Actions, so none of them can skip a check.</p>
+<p>Each Action:</p>
+<ol><li>
+checks permissions;
+</li><li>
+locks the portfolio row inside a database transaction;
+</li><li>
+enforces the business rules;
+</li><li>
+writes the row.
+</li></ol>
+<p>A failure rolls everything back.</p>
+<p><strong>Five rules</strong>, each enforced in one place and each with a named test:</p>
+<div class="table"><table><thead><tr><th scope="col"></th><th scope="col">Rule</th></tr></thead><tbody><tr><td>R1</td><td>Only the price sync can set the price of a market asset (BTC, ETH, AAPL)</td></tr><tr><td>R2</td><td>Only an Editor or Owner can value a private asset (a flat, a bank account)</td></tr><tr><td>R3</td><td>A transaction can only use a market asset or one of its own portfolio's assets</td></tr><tr><td>R4</td><td>A position can never go negative, at any point in time, including backdated sales</td></tr><tr><td>R5</td><td>Ledger rows are never edited or deleted. Mistakes are fixed with a reversing row.</td></tr></tbody></table></div>
+<p><strong>Roles:</strong></p>
+<div class="table"><table><thead><tr><th scope="col"></th><th scope="col">Viewer</th><th scope="col">Editor</th><th scope="col">Owner</th></tr></thead><tbody><tr><td>See everything, ask the assistant</td><td class="yes">yes</td><td class="yes">yes</td><td class="yes">yes</td></tr><tr><td>Log or reverse transactions, value private assets</td><td class="no">no</td><td class="yes">yes</td><td class="yes">yes</td></tr><tr><td>Manage members, delete the portfolio</td><td class="no">no</td><td class="no">no</td><td class="yes">yes</td></tr></tbody></table></div>
+<p>Money is stored as <code>DECIMAL(24,8)</code> and calculated as exact decimal strings, never floats. Profit uses average cost and is split into realized (sales) and unrealized (still held).</p>
+<h2 id="3-the-ai-assistant">3. The AI assistant</h2>
+<div class="table"><table><thead><tr><th scope="col">Tool</th><th scope="col">For</th><th scope="col">Does</th></tr></thead><tbody><tr><td><code>get_portfolio_summary</code></td><td>all members</td><td>Holdings, value, cost, profit</td></tr><tr><td><code>get_allocation</code></td><td>all members</td><td>Weights by asset and type, used for rebalancing suggestions</td></tr><tr><td><code>list_transactions</code></td><td>all members</td><td>Recent ledger rows</td></tr><tr><td><code>log_transaction</code></td><td>Editor, Owner</td><td>Proposes a trade, which the user must approve</td></tr></tbody></table></div>
+<p><strong>How it stays within the user's permissions:</strong></p>
+<ol><li>
+<strong>Identity comes from the server.</strong> The user and the portfolio come from the session and the URL. No tool accepts a user or portfolio id, so the model can't choose who it acts as.
+</li><li>
+<strong>One execution path.</strong> Every tool runs through <code>AssistantTools::execute()</code>. It checks permissions, calls the same services and Actions as the web, writes an audit row (<code>agent_runs</code>), and returns JSON. It never throws.
+</li><li>
+<strong>A human approves every write.</strong> <code>log_transaction</code> pauses and shows an Approve/Reject card. On approval, the role, the conversation's ownership and a 10-minute expiry are checked again. Then the same <code>LogTransaction</code> Action runs and checks the role once more.
+</li><li>
+<strong>The Action is the boundary.</strong> The tool list is filtered by role, but that's a courtesy, not the security. A Viewer who reaches <code>log_transaction</code> is refused by the Action, and the refusal is audited.
+</li></ol>
+<p>Replies stream as Server-Sent Events. Every refusal (403, 404, 422, 503) is sent before the stream starts, while the status code can still change.</p>
+<h2 id="4-discussions-the-choices-that-weren-t-obvious">4. Discussions: the choices that weren't obvious</h2>
+<div class="table"><table><thead><tr><th scope="col">Question</th><th scope="col">Options weighed</th><th scope="col">Decision and why</th></tr></thead><tbody><tr><td>Where should permissions be enforced?</td><td>Route middleware, controllers, Form Requests, or inside the Actions</td><td><strong>Inside the Actions.</strong> The agent never passes through a controller or a route, so a check at the HTTP layer would leave it unguarded. In the Action, every entry point passes the same check.</td></tr><tr><td>Is a separate API tier needed (Express or REST)?</td><td>Express or a REST API with a separate SPA, or Inertia</td><td><strong>Inertia, no API tier.</strong> One server, session login, no tokens or CORS, and validation errors go straight to the forms. A separate API would have nothing to do. Cost: no ready-made API for a mobile app.</td></tr><tr><td>Which data layer?</td><td>PostgreSQL (row-level security), MySQL, SQLite for tests</td><td><strong>MySQL with Eloquent.</strong> Exact decimals and the same transactions and locks. Without row-level security, authorization is concentrated in the Actions. The schema uses Laravel's builder only, so moving to PostgreSQL is a config change. SQLite was rejected for tests because it turned decimals into floats.</td></tr><tr><td>Which AI framework?</td><td>Laravel AI SDK, Prism, Vercel AI SDK, a hand-written loop</td><td><strong>Laravel AI SDK.</strong> Tool calling, streaming, stored conversations, tool approval and test fakes in one first-party package. Prism would need approval and storage built by hand, and the Vercel SDK would need a Node server.</td></tr><tr><td>Should the agent write directly?</td><td>Immediate writes, a read-only agent, or writes after approval</td><td><strong>Writes after a human click, expiring after 10 minutes.</strong> It keeps the agent useful, and no write can happen even if the model is manipulated by text in the data (prompt injection).</td></tr><tr><td>Where does chat history live?</td><td>Sent by the browser each time, or stored on the server</td><td><strong>On the server.</strong> The browser can't forge history. Reading the SDK's source showed it doesn't check who owns a conversation, so each conversation is bound to one user and one portfolio.</td></tr><tr><td>Which price provider?</td><td>freecryptoapi.com (crypto only), Finnhub (stocks only), CoinGecko</td><td><strong>CoinGecko</strong>, one provider for crypto and AAPL (through Apple xStock, a token that tracks the share). The free quota is 10,000 calls a month, so a 5-minute sync (about 8,640 calls) fits and a 1-minute sync wouldn't.</td></tr><tr><td>Live updates: push or poll?</td><td>WebSockets (Laravel Reverb), or polling</td><td><strong>Polling every 30 seconds.</strong> Prices change every 5 minutes, so the poll is already faster than the data. Reverb would add a server, a queue and a second auth path for no visible gain. It becomes the right choice for presence or second-by-second data.</td></tr><tr><td>What price does a transaction record?</td><td>Force the market price, or let the user enter it</td><td><strong>User-entered, pre-filled with the latest price.</strong> The market price values the portfolio, while the transaction price records what was actually paid. Trades can be backdated, and exchanges charge their own price.</td></tr><tr><td>Should fees be tracked?</td><td>Keep a fee column, or drop it</td><td><strong>Dropped.</strong> The brief doesn't ask for fees. Adding them back later is one column.</td></tr><tr><td>What does "profit" mean after a sale?</td><td>Unrealized only, or realized plus unrealized</td><td><strong>Both, shown separately.</strong> With unrealized only, a profitable sale made the total profit drop. Reversed trades are left out of the calculation entirely, so a corrected mistake leaves no trace.</td></tr><tr><td>What if the AI provider is overloaded?</td><td>Show the error, retry the same model, or fail over</td><td><strong>Fail over to a second Gemini model.</strong> Google's 503 "overloaded" errors are per model. The fallback is set in config.</td></tr><tr><td>Database triggers for R5?</td><td>Triggers, or app-level guards only</td><td><strong>App-level for now.</strong> Model guards, no update or delete routes, and an architecture test. Triggers are the next step.</td></tr></tbody></table></div>
+<p>Every decision, with its cost, is in <a href="docs/decisions.md"><code>docs/decisions.md</code></a>.</p>
+<h2 id="5-type-safety-across-php-and-typescript">5. Type safety across PHP and TypeScript</h2>
+<p>The contract is checked at each boundary:</p>
+<ol><li>
+Form Requests validate the input.
+</li><li>
+A typed DTO and PHP enums carry it into the Actions.
+</li><li>
+Hand-written TypeScript types describe each page's data, with no <code>any</code>.
+</li><li>
+<code>assertInertia</code> tests pin what the server actually sends, so the types can't drift.
+</li></ol>
+<h2 id="6-how-i-used-ai-tools">6. How I used AI tools</h2>
+<ol><li>
+<strong>Plan first.</strong> A build guide and four task lists (database, Actions, HTTP and UI, agent), each task with "done when" checks.
+</li><li>
+<strong>One task at a time.</strong> Claude Code executed a task, then reported what changed, why, how it was verified, and any open questions. I reviewed it and made the decisions before the next task.
+</li><li>
+<strong>Read the source, don't guess.</strong> The SDK findings above, the ownership gap and a hidden extra model call per chat, came from reading the installed code.
+</li><li>
+<strong>Verify, don't trust.</strong> Tests, the type check and the build ran after every task. For key protections I broke the code on purpose to confirm a test fails.
+</li></ol>
+<p>The review caught real problems:</p>
+<ul><li>
+The tables were created with a storage engine that silently ignores transactions.
+</li><li>
+The test database turned money into floats.
+</li><li>
+The SDK trusts any conversation id.
+</li></ul>
+<p><strong>Tests:</strong> 400 Pest tests on MySQL, none of which touch the network:</p>
+<ul><li>
+every rule, in both its allowed and refused case;
+</li><li>
+every write endpoint, against guests, non-members and Viewers;
+</li><li>
+125 tests for the agent.
+</li></ul>
+<h2 id="7-known-limitations-and-next-steps">7. Known limitations and next steps</h2>
+<div class="table"><table><thead><tr><th scope="col">Limitation</th><th scope="col">Next step</th></tr></thead><tbody><tr><td>R5 is enforced in the application, not by the database</td><td>MySQL triggers</td></tr><tr><td>Row locks are reasoned about, not tested under real concurrency</td><td>A parallel-writer test</td></tr><tr><td>Prices are polled and can be 5 minutes old; AAPL is a tracking token</td><td>A stock data provider; Reverb if data arrives faster</td></tr><tr><td>No presence or collaborative notes</td><td>Laravel Reverb</td></tr><tr><td>One currency per portfolio; no automatic cash movements</td><td>FX rates and a cash ledger</td></tr><tr><td>One AI provider tested; no per-user token budget</td><td>Budgets and prompt evaluations</td></tr><tr><td>Authorization lives only in the application</td><td>PostgreSQL row-level security as a second layer</td></tr></tbody></table></div>
+<p>Setup and run instructions are in <a href="README.md"><code>README.md</code></a>.</p>
+<footer>The full decision register is in docs/decisions.md.</footer>
+</main>
+</div>
+</body>
+</html>

@@ -8,7 +8,9 @@ use App\Agent\Tools\GetAllocationTool;
 use App\Agent\Tools\GetPortfolioSummaryTool;
 use App\Agent\Tools\ListTransactionsTool;
 use App\Agent\Tools\LogTransactionTool;
+use Laravel\Ai\Concerns\RemembersConversations;
 use Laravel\Ai\Contracts\Agent;
+use Laravel\Ai\Contracts\Conversational;
 use Laravel\Ai\Contracts\HasTools;
 use Laravel\Ai\Contracts\Tool;
 use Laravel\Ai\Promptable;
@@ -20,9 +22,13 @@ use Laravel\Ai\Promptable;
  * filtered by role so the model is not offered what it cannot do, but that is not the security
  * boundary: every tool goes through AssistantTools and the Actions, which check the role themselves.
  */
-final class PortfolioAssistant implements Agent, HasTools
+final class PortfolioAssistant implements Agent, Conversational, HasTools
 {
     use Promptable;
+
+    // History comes from the SDK's conversation store. Open conversations only through
+    // AssistantConversations, which checks the conversation belongs to this user and portfolio.
+    use RemembersConversations;
 
     /** Tool name => adapter class. */
     private const TOOLS = [

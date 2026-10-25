@@ -78,3 +78,13 @@ Earlier phases are summarized in `DATABASE_DROPOFF.md`, `ACTIONS_DROPOFF.md` and
   - A model can send `"quantity": 0.1` as a JSON number. Under `strict_types` that would have crashed `LogTransactionData` with a `TypeError` (a generic "error" to the user). Non-string money is now a clear `invalid` asking for a string, so the model can retry.
   - The note limit of 500 lives only in the web Form Request, which the agent bypasses; agent notes are capped at 200 characters as the spec asks.
   - The tool has no date argument, so a backdated oversell cannot be requested through it. An invented `occurred_at` argument is ignored and the trade is dated now (tested).
+
+### Task 7: Server-side conversations
+
+- **Asked:** Claude Code to keep chat history on the server with the SDK's conversation store, scoped to the user and the portfolio.
+- **Reviewed:** the SDK source again before building. Its tables store the user but not the portfolio, and `continue($id)` checks nothing, so the spec's `assistant_threads` table is used and checked before any conversation is continued. Proven by deleting the portfolio condition: the "other portfolio" test failed.
+- **Changed or rejected:**
+  - **Server-side mode, not the fallback.** The client will send only a message and an optional id; history is replayed from the database (tested: the second turn sees the first user message and reply).
+  - The SDK makes an **extra model call to title every new conversation**. That would spend tokens for nothing the app shows, so `ai.conversations.generate_title` is off and the title is the first 50 characters of the message.
+  - The conversation row and thread row are created **before** the model call (through the SDK's `ConversationStore`), so the endpoint can send the conversation id to the browser first.
+  - Every rejection (unknown id, another user's, another portfolio's, SDK row with no thread) throws the same `ModelNotFoundException`, so the response never reveals whether an id exists.
